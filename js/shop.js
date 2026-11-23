@@ -114,10 +114,13 @@ function pullOrderStatus(){
   var ids = state.orders.slice(0, 20).map(function(o){ return o.no; });
   var sel = encodeURIComponent("id,status,cancelReason:data->>cancelReason,cancelAt:data->>cancelAt");
   return sbCall("retail_orders?select=" + sel + "&id=in.(" + encodeURIComponent(sbQuoted(ids)) + ")").then(function(rows){
-    if (!rows || !rows.length) return;
-    var byNo = {};
-    rows.forEach(function(r){ byNo[r.id] = r; });
+    rows = rows || [];
+    var byNo = {}, present = [];
+    rows.forEach(function(r){ byNo[r.id] = r; present.push(r.id); });
     var changed = false;
+    /* 사장님이 공용 DB에서 지운 주문(결제 실패·중복)은 이 기기 목록에서도 뺀다 */
+    var split = splitDeletedOrders(state.orders, present, ids);
+    if (split.dead.length){ state.orders = split.kept; changed = true; }
     state.orders.forEach(function(o){
       var r = byNo[o.no];
       if (!r) return;

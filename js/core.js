@@ -171,3 +171,47 @@ function pushOrder(o){
     }])
   }).catch(function(){});
 }
+
+/* ── 공용 DB에서 지워진 주문 정리 ──
+   사장님이 공용 DB에서 지운 주문(결제 실패·중복 주문 등)은 기기 저장소에 남아 있으면
+   자정이 지나도 '새 주문'처럼 계속 보인다. 그래서 DB에서 한 번이라도 확인된 주문(dbseen)이
+   이번 조회 결과에 없으면 지워진 것으로 보고 이 기기 목록에서도 뺀다.
+   아직 DB에 못 올라간 주문(주문 직후 통신 실패)은 dbseen 에 없으므로 그대로 남겨 둔다. */
+var DBSEEN_KEY = "hoonie_retail_orders_dbseen_v1";
+var DBSEEN_MIN_AGE = 10 * 60 * 1000;      /* 방금 올린 주문이 조회에서 앞서 나가는 일은 없다 — 넉넉히 둔다 */
+function dbSeenRead(){
+  try {
+    var d = JSON.parse(localStorage.getItem(DBSEEN_KEY) || "{}");
+    return (d && typeof d === "object" && !Array.isArray(d)) ? d : {};
+  } catch(e){ return {}; }
+}
+function dbSeenSave(m){
+  var ks = Object.keys(m);
+  if (ks.length > 400){
+    ks.sort(function(a, b){ return (m[b] || 0) - (m[a] || 0); });
+    for (var i = 400; i < ks.length; i++) delete m[ks[i]];
+  }
+  try { localStorage.setItem(DBSEEN_KEY, JSON.stringify(m)); } catch(e){}
+}
+/* present = 이번 조회에서 DB에 있던 주문번호 · asked = 이번에 물어본 주문번호 (null = 전체 목록을 다 받아 옴, [] = 아무것도 판단하지 않음)
+   → {kept, dead} */
+function splitDeletedOrders(list, present, asked){
+  var seen = dbSeenRead(), has = {}, touched = false, t = Date.now();
+  (present || []).forEach(function(no){
+    if (!no) return;
+    has[no] = 1;
+    if (!seen[no]){ seen[no] = t; touched = true; }
+  });
+  if (touched) dbSeenSave(seen);
+  var only = null;
+  if (asked){ only = {}; asked.forEach(function(no){ if (no) only[no] = 1; }); }
+  var kept = [], dead = [];
+  (list || []).forEach(function(o){
+    var no = o && (o.no || o.id);
+    if (!no){ kept.push(o); return; }
+    var old = (t - Number(o.at || 0)) > DBSEEN_MIN_AGE;
+    if (!has[no] && seen[no] && old && (!only || only[no])) dead.push(no);
+    else kept.push(o);
+  });
+  return {kept: kept, dead: dead};
+}

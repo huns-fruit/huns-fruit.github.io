@@ -32,17 +32,19 @@ function pullCatalog(){
 }
 
 
+var ORDERS_PULL_LIMIT = 100;
 function pullOrders(){
   if (!sbOn()) return Promise.resolve();
-  return sbCall("retail_orders?select=id,status,data&order=created_at.desc&limit=100").then(function(rows){
-    if (!rows || !rows.length) return;
+  return sbCall("retail_orders?select=id,status,data&order=created_at.desc&limit=" + ORDERS_PULL_LIMIT).then(function(rows){
+    rows = rows || [];
     var local = readOrders();
     var byNo = {};
     local.forEach(function(o){ byNo[o.no] = o; });
-    var changed = false;
+    var changed = false, dbIds = [];
     rows.forEach(function(r){
       var d = r.data || {};
       var no = d.no || r.id;
+      dbIds.push(no);
       var cur = byNo[no];
       if (!cur){
         d.no = no; d.status = normStatus(r.status || d.status, d.mode);
@@ -59,6 +61,14 @@ function pullOrders(){
         }
       }
     });
+    /* 공용 DB에서 지운 주문(결제 실패·중복)은 이 기기 목록에서도 뺀다.
+       100건을 다 받아 왔을 땐 오래된 주문을 지운 것으로 오해할 수 있어 건드리지 않는다. */
+    var split = splitDeletedOrders(Object.keys(byNo).map(function(k){ return byNo[k]; }), dbIds,
+                                   rows.length < ORDERS_PULL_LIMIT ? null : []);
+    if (split.dead.length){
+      split.dead.forEach(function(no){ delete byNo[no]; delete alarm.pending[no]; });
+      changed = true;
+    }
     if (!changed) return;
     var list = Object.keys(byNo).map(function(k){ return byNo[k]; });
     list.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
@@ -541,6 +551,19 @@ function hhmm(ts){
   var d = new Date(ts);
   return pad(d.getHours()) + ":" + pad(d.getMinutes());
 }
+function isYesterday(ts){
+  if (!ts) return false;
+  var d = new Date(ts), y = new Date();
+  y.setDate(y.getDate() - 1);
+  return dayStr(d) === dayStr(y);
+}
+/* 날짜 꼬리표 — 오늘·어제·11월 22일 */
+function dayTag(ts){
+  if (isToday(ts)) return "오늘";
+  if (isYesterday(ts)) return "어제";
+  var d = new Date(ts);
+  return (d.getMonth() + 1) + "월 " + d.getDate() + "일";
+}
 
 /* ── 저장소 ─────────────────────────────── */
 function readCatalog(){
@@ -666,8 +689,37 @@ function payFlagsHtml(o){
 
 
 
+/* ── 오늘 처리할 주문 ───────────────────────────
+   자정이 지나면 사라지면 안 되는 주문이 있다.
+     1) 오늘 접수된 주문                             — isToday(o.at)
+     2) 어제 접수해서 오늘 오전 배달·픽업 예정인 주문    — slot 이 tomorrow_am · tomorrow_pickup
+     3) 아직 끝나지 않은 진행 중 주문                 — 새 주문·접수·배달 중·픽업 대기
+   목록·건수에는 1~3을 모두 넣고, 매출 합계에는 '오늘 몫'(1·2)만 센다.
+   (며칠 지난 진행 중 주문이 매일 매출에 다시 더해지지 않게) */
+var DUE_TODAY_SLOTS = ["tomorrow_am", "tomorrow_pickup"];
+function dueToday(o){
+  return !!o && DUE_TODAY_SLOTS.indexOf(String(o.slot || "")) > -1;
+}
+/* 어제 접수 · 오늘 배달/픽업 */
+function carryOver(o){
+  return !!o && isYesterday(o.at) && dueToday(o);
+}
 function todayOrders(){
-  return state.orders.filter(function(o){ return isToday(o.at); });
+  return state.orders.filter(function(o){
+    if (!o) return false;
+    if (isToday(o.at)) return true;
+    if (carryOver(o)) return true;
+    return isLiveStatus(oStatus(o));          /* 지난 주문이라도 아직 안 끝났으면 계속 보인다 */
+  });
+}
+/* 오늘 매출로 세는 주문인가 — 오늘 접수 또는 어제 접수·오늘 배달/픽업 */
+function todayMoney(o){ return isToday(o.at) || carryOver(o); }
+/* 받는 시간 — 어제 접수한 주문은 '내일'이 아니라 '오늘' 오전으로 읽히게 바꾼다 */
+function slotText(o){
+  var base = String(o.slotLabel || o.eta || "—");
+  if (isToday(o.at)) return base;
+  if (carryOver(o)) return dayTag(o.at) + " 접수 · " + base.replace(/^내일\s*/, "오늘 ");
+  return dayTag(o.at) + " 접수 · " + base.replace(/^(내일|모레)\s*/, "");   /* 지난 주문엔 '내일/모레'가 틀린 말 */
 }
 /* 단계 칩 → 그 단계에 해당하는 주문들 */
 var FILTER_ST = {
@@ -704,12 +756,12 @@ function isEventItem(it){
 function orderCardHtml(o){
   var st = oStatus(o);
   var h = '<article class="ocard st-' + st + (alarm.pending[o.no] ? ' isnew' : '') + '" data-no="' + esc(o.no) + '">';
-  h += '<div class="ohead"><b class="ono">' + esc(o.no) + '</b><span class="otime">' + esc(o.time || hhmm(o.at)) + '</span>'
+  h += '<div class="ohead"><b class="ono">' + esc(o.no) + '</b><span class="otime' + (isToday(o.at) ? '' : ' prev') + '">' + esc((isToday(o.at) ? '' : dayTag(o.at) + ' ') + (o.time || hhmm(o.at))) + '</span>'
     +  '<span class="obadge ' + (o.mode === "pickup" ? "pickup" : "delivery") + '">' + (o.mode === "pickup" ? "🏪 포장" : "🛵 배달") + '</span>'
     +  (hasEventBanana(o) ? '<span class="obadge ev" title="오픈 기념 이벤트 — 바나나 1송이 100원">🍌 100원 바나나</span>' : '')
     +  '<span class="ost ' + st + '">' + statusLabel(o) + '</span></div>';
   h += '<div class="orows">'
-    + '<div class="orow"><span>받는 시간</span><b class="slot">' + esc(o.slotLabel || o.eta || "—") + '</b></div>'
+    + '<div class="orow"><span>받는 시간</span><b class="slot">' + esc(slotText(o)) + '</b></div>'
     + '<div class="orow"><span>고객</span><b>' + esc(o.name) + ' · ' + esc(o.phone) + '</b></div>'
     + payFlagsHtml(o)
     + (o.mode === "delivery"
@@ -767,7 +819,7 @@ function renderOrders(){
   var sales = 0, wait = 0;
   today.forEach(function(o){
     if (oStatus(o) === "canceled") return;      /* 취소된 주문은 매출·준비 건수에서 뻔다 */
-    sales += Number(o.total || 0);
+    if (todayMoney(o)) sales += Number(o.total || 0);   /* 어제 접수·오늘 배달은 오늘 매출로 */
     if (oStatus(o) !== "done") wait++;
   });
   $("#sumCount").textContent = today.length + "건";
