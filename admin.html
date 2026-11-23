@@ -902,8 +902,8 @@ var PRODUCTS = [
      badges:[["행사","hot"]], origin:"필리핀산", desc:"오늘만 이 가격 · 1인 1송이", price:1000, stock:8,
      tip:"노랗게 익으면 냉장 보관하세요", tags:["행사 바나나"]}),
 
-  P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"3개", cats:["deal"], img:"pineapple", grade:"home",
-     badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 3통", price:9900, tags:["파인애플"],
+  P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
+     badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:9900, tags:["파인애플"],
      tip:"뒤집어 하루 두면 더 달아져요"}),
 
   P({id:"daebong-15", name:"대봉감", unit:"15알", cats:["deal"], img:"daebong", grade:"C",
@@ -932,8 +932,8 @@ var PRODUCTS = [
   P({id:"mango", name:"골드망고", unit:"4개", cats:["fruit"], img:"mango", grade:"home",
      badges:[], origin:"태국산", desc:"4개 한 세트", price:9900, tags:["망고"]}),
 
-  P({id:"persimmon", name:"단감", unit:"15알", cats:["fruit"], img:"persimmon", grade:"home",
-     badges:[["정품","fresh"]], origin:"국내산", desc:"아삭한 단감 15알", price:7900, tags:["감"]}),
+  P({id:"persimmon", name:"부유 단감", unit:"20알", cats:["fruit"], img:"persimmon", grade:"home",
+     badges:[["정품","fresh"]], origin:"국내산", desc:"아삭한 부유 단감 20알", price:7900, tags:["감 부유"]}),
 
   P({id:"daebong-gift", name:"대봉감", unit:"4kg", cats:["fruit"], img:"daebong", grade:"A",
      badges:[["선물용","gift"]], origin:"국내산", desc:"선물용 박스 포장", price:15000, tags:["감"]}),
@@ -942,22 +942,21 @@ var PRODUCTS = [
      badges:[], origin:"제주산", desc:"새콤달콤 황금향", price:12800, tags:["귤 감귤"]}),
 
   P({id:"tangerine", name:"제주 귤", unit:"5kg", cats:["fruit"], img:"tangerine", grade:"home",
-     ogrades:["home","A","A","B","B","B"],
+     ogrades:["A","A","B","B"],
      badges:[], origin:"제주산", desc:"사이즈·품종 골라 담기", stock:3,
      tip:"한두 알 껍질을 벗겨 두었다 드세요",
-     opts:[{label:"2L · 5kg", price:12800},
-           {label:"다우렁 M · 5kg", price:20000},
+     opts:[{label:"다우렁 M · 5kg", price:20000},
            {label:"유라조생 M · 5kg", price:30000},
-           {label:"서귀포 B급 M · 5kg", price:16800},
-           {label:"서귀포 B급 S · 5kg", price:20000},
-           {label:"맛좋은 B급 M · 5kg", price:16800}],
+           {label:"서귀포 B급 M · 5kg", price:12800},
+           {label:"서귀포 B급 S/2S · 5kg", price:15000}],
      tags:["귤 감귤"]}),
 
   P({id:"emperor", name:"중문 황제귤", unit:"5kg · M", cats:["fruit"], img:"tangerine", grade:"A",
      badges:[["프리미엄","gift"]], origin:"제주 중문", desc:"중문 명품 귤 M 사이즈", price:36000, tags:["귤 감귤"]}),
 
   P({id:"newstein", name:"윤홍희 뉴스틴 포도", unit:"2kg", cats:["fruit"], img:"shine", grade:"A",
-     badges:[], origin:"국내산", desc:"망고스틴 식감 · 당도 보증", price:15000, tags:["포도 샤인"]}),
+     badges:[], origin:"국내산", desc:"샤인머스켓과 비슷한 포도 · 망고스틴 맛과 식감", price:15000, tags:["포도 샤인 뉴스틴"],
+     tip:"망고스틴을 연상시키는 맛과 식감! 샤인머스켓과 비슷한 포도 · 당도 자신!"}),
 
   P({id:"bansee", name:"반시", unit:"2.5kg · M", cats:["fruit"], img:"persimmon", grade:"C",
      badges:[], origin:"국내산", desc:"M 사이즈 2.5kg", price:5000, tags:["감 홍시"]}),
@@ -998,13 +997,12 @@ var PRODUCTS = [
 
   /* ── 신선 채소 ── */
   P({id:"cabbage", name:"배추", unit:"1망", cats:["veg"], img:"cabbage",
-     badges:[], origin:"국내산", desc:"김장 배추 1망", price:4500, tags:["배추 김장"],
+     badges:[], origin:"국내산", desc:"김장 배추 1망", price:7900, tags:["배추 김장"],
      tip:"김장 배추는 4일 전 예약하세요"}),
-  P({id:"cheonggat", name:"청갓", unit:"1단", cats:["veg"], img:"cheonggat", badges:[], origin:"국내산", desc:"싱싱한 청갓", price:3000, tags:["갓"]}),
   P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", badges:[], origin:"국내산", desc:"5단 묶음", price:9900, tags:["무 총각김치"]}),
   P({id:"jjokpa", name:"흙쪽파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"흙 묻은 쪽파 1단", price:3000, tags:["쪽파 파 김장"]}),
-  P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2500, stock:10, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
-  P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1500, tags:["호박"]}),
+  P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2000, stock:10, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
+  P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1000, tags:["호박"]}),
   P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["부추"]}),
   P({id:"cheongyang", name:"청양고추", unit:"1팩", cats:["veg"], img:"cheongyang", badges:[], origin:"국내산", desc:"매콤한 청양고추", price:2000, tags:["고추"]}),
   P({id:"kkwari", name:"꽈리고추", unit:"1팩", cats:["veg"], img:"kkwari", badges:[], origin:"국내산", desc:"1팩", price:2000, tags:["고추"]}),
