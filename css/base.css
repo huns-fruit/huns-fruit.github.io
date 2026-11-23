@@ -1,0 +1,21 @@
+/* base.css — 두 화면 공용 기반: 색·타이포·리셋 (2026-11-23 분리) */
+*{box-sizing:border-box}
+:root{
+  --mint:#2AC1BC; --mint-d:#159C97; --mint-l:#E8F8F7; --mint-l2:#F3FBFA;
+  --ink:#222; --ink2:#555; --ink3:#8F8F8F;
+  --line:#EDEDED; --bg:#F4F5F7; --white:#fff;
+  --red:#E8453C; --amber:#8A5400; --amber-l:#FFF7E8; --green:#1E8E5A;
+  --sh:0 2px 8px rgba(0,0,0,.06);
+}
+html{-webkit-text-size-adjust:100%}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{
+  background:var(--bg); color:var(--ink); line-height:1.45;
+  font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased; word-break:keep-all; overflow-wrap:break-word;
+}
+img{display:block;max-width:100%}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}
+input,textarea{font:inherit;color:inherit}
+a{color:inherit}
