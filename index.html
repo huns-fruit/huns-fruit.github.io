@@ -292,8 +292,12 @@ a{color:inherit}
 .who{display:flex;align-items:center;gap:8px;background:var(--mint-l2);border:1px solid #CFEFED;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:14px;color:#0B7C77;font-weight:800;letter-spacing:-.2px}
 .who button{margin-left:auto;font-size:12.5px;color:var(--ink3);text-decoration:underline;padding:8px;font-weight:700}
 .pays{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.paybtn{height:54px;border-radius:10px;border:1.5px solid #E4E6E8;background:#fff;font-size:15px;font-weight:800;color:var(--ink2);display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.3px}
+.paybtn{height:54px;border-radius:10px;border:1.5px solid #E4E6E8;background:#fff;font-size:15px;font-weight:800;color:var(--ink2);display:flex;align-items:center;justify-content:center;gap:6px;letter-spacing:-.3px;position:relative}
 .paybtn.on{border-color:var(--mint);background:var(--mint-l);color:var(--mint-d)}
+/* PG 연결 전 — 무통장입금 외 수단은 고를 수 없다 */
+.paybtn.off,.paybtn[disabled]{border-color:#ECEEF0;background:#F5F6F7;color:#B0B5BA;cursor:not-allowed}
+.paybtn.off span,.paybtn[disabled] span{opacity:.45}
+.paybtn .pgsoon{position:absolute;top:-7px;right:7px;font-style:normal;font-size:10.5px;font-weight:800;letter-spacing:-.2px;color:#8F8F8F;background:#F1F3F4;border:1px solid #E4E6E8;border-radius:6px;padding:1px 5px;line-height:1.4;white-space:nowrap}
 .rcpt{margin-top:12px;border:1.5px solid #E4E6E8;border-radius:12px;padding:12px 12px 10px;background:#fff}
 .rcpt-h b{display:block;font-size:14px;font-weight:800;letter-spacing:-.3px;color:var(--ink)}
 .rcpt-h small{display:block;margin-top:2px;font-size:12px;color:var(--ink3);font-weight:700;letter-spacing:-.2px}
@@ -1116,11 +1120,14 @@ var CATS = [
   {key:"egg", label:"🥚 계란", title:"계란"}
 ];
 
+/* 결제 수단 — PG 연결 전까지는 무통장입금(계좌입금)만 받는다.
+   다른 수단은 화면에 'PG 준비 중'으로만 보이고 고를 수 없다(disabled). */
+var PAY_ONLY = "bank";
 var PAYS = [
-  {key:"card", label:"신용·체크카드", icon:"💳"},
-  {key:"naverpay", label:"네이버페이", icon:"🟢"},
-  {key:"kakaopay", label:"카카오페이", icon:"🟡"},
-  {key:"bank", label:"무통장입금", icon:"🏦"}
+  {key:"bank", label:"무통장입금", icon:"🏦"},
+  {key:"card", label:"신용·체크카드", icon:"💳", soon:true},
+  {key:"naverpay", label:"네이버페이", icon:"🟢", soon:true},
+  {key:"kakaopay", label:"카카오페이", icon:"🟡", soon:true}
 ];
 
 var DAYS = ["일","월","화","수","목","금","토"];
@@ -1137,7 +1144,7 @@ var state = {
   filter: "all",
   q: "",
   view: "shop",      // shop | cart | checkout | done
-  form: {name:"", phone:"", addr:"", memo:"", pay:"card", agree:false, depositor:"", receiptType:"none", receiptNo:""},
+  form: {name:"", phone:"", addr:"", memo:"", pay:"bank", agree:false, depositor:"", receiptType:"none", receiptNo:""},
   order: null,
   opt: null,         // {pid, oi, qty}
   couponDate: null,  // 포장 할인 마지막 사용일 (YYYY-MM-DD)
@@ -2075,7 +2082,7 @@ var POLICIES = {
       + '<h4>제1조 (목적)</h4><p>이 약관은 훈이네과일야채 단구점(이하 “가게”)이 운영하는 소매 주문 화면(이하 “사이트”)에서 과일·채소·계란 등 신선식품을 주문하고 받는 데 필요한 조건과 절차를 정합니다.</p>'
       + '<h4>제2조 (상품과 가격)</h4><ul><li>표시 가격은 원화이며 부가세를 포함합니다.</li><li>신선식품은 입고 시세에 따라 가격이 바뀔 수 있고, 주문한 시점의 가격이 적용됩니다.</li><li>품절·입고 중단된 상품은 주문이 취소될 수 있으며, 이때는 고객센터로 먼저 연락드리고 결제 금액을 환불해 드립니다.</li></ul>'
       + '<h4>제3조 (주문과 계약 성립)</h4><ul><li>주문서를 보내면 가게가 내용을 확인한 뒤 접수하며, 그때 계약이 성립합니다.</li><li>배달 주문은 낮 12시까지 접수된 건을 당일 또는 익일 배달합니다. 기업도시·태장·우산동은 전날 주문 시 다음날 오전에 배송합니다.</li><li>주문 내용과 다르거나 연락이 닿지 않으면 가게가 주문을 취소할 수 있습니다.</li></ul>'
-      + '<h4>제4조 (결제)</h4><ul><li>신용·체크카드, 네이버페이, 카카오페이, 무통장입금으로 결제할 수 있습니다.</li><li>카드·간편결제는 전자지급결제대행사(PG)를 통해 처리되며, 가게는 카드번호 등 결제 정보를 저장하지 않습니다.</li><li>무통장입금은 입금이 확인된 뒤 준비를 시작합니다.</li></ul>'
+      + '<h4>제4조 (결제)</h4><ul><li>현재는 무통장입금(계좌입금)만 이용할 수 있습니다. 입금이 확인된 뒤 상품 준비와 배달이 시작됩니다.</li><li>신용·체크카드, 네이버페이, 카카오페이는 결제대행사(PG) 연결 준비 중이며, 연결이 끝나면 열어 드립니다. 가게는 카드번호 등 결제 정보를 저장하지 않습니다.</li></ul>'
       + '<h4>제5조 (배달과 수령)</h4><p>배달 권역·최소주문 금액·매장 픽업 시간은 <b>배송 및 교환·환불 정책</b>에 따릅니다. 주문서에 적어 주신 연락처로 배달 전에 연락드릴 수 있습니다.</p>'
       + '<h4>제6조 (취소·교환·환불)</h4><p>주문 취소, 교환, 환불은 <b>배송 및 교환·환불 정책</b>에서 정한 기준과 절차에 따릅니다.</p>'
       + '<h4>제7조 (신선식품의 특성)</h4><ul><li>과일·채소는 자연 상태 그대로라 크기·색·당도에 차이가 있을 수 있습니다.</li><li>상품에 표시된 등급(A급·품질보증 / 가정용·실속 가정용 / B급·알뜰 못난이 / C급·당일소진 초특가)은 그 차이를 미리 알려 드리기 위한 기준입니다.</li></ul>'
@@ -2342,6 +2349,8 @@ function loginBoxHtml(){
 function renderCheckout(){
   if (state.view !== "checkout") return;
   var f = state.form, z = zoneInfo();
+  /* 무통장입금만 받는다 — 다른 값이 남아 있으면 되돌린다 */
+  if (f.pay !== PAY_ONLY) f.pay = PAY_ONLY;
 
   var h = '<section class="csec"><h3><span class="sn">1</span>주문자 정보</h3>'
     + loginBoxHtml()
@@ -2395,13 +2404,16 @@ function renderCheckout(){
 
   h += '<div class="band"></div>'
     + '<section class="csec"><h3><span class="sn">4</span>결제 수단</h3>'
-    + '<p class="hint">결제 수단을 골라 주세요. 주문서를 보내면 사장님이 확인한 뒤 결제를 안내드려요.</p><div class="pays">';
+    + '<p class="hint">지금은 <b>무통장입금</b>만 받아요. 아래 계좌로 입금하시면 사장님이 확인한 뒤 준비해서 보내드려요. 카드·간편결제는 PG 준비 중이라 고를 수 없어요.</p><div class="pays">';
   for (var j=0;j<PAYS.length;j++){
-    var py = PAYS[j];
-    h += '<button class="paybtn' + (f.pay===py.key ? ' on' : '') + '" data-pay="' + py.key + '">'
-      + '<span>' + py.icon + '</span>' + py.label + '</button>';
+    var py = PAYS[j], off = (py.key !== PAY_ONLY);
+    h += '<button class="paybtn' + (f.pay===py.key ? ' on' : '') + (off ? ' off' : '') + '" data-pay="' + py.key + '"'
+      + (off ? ' disabled aria-disabled="true"' : '') + '>'
+      + '<span>' + py.icon + '</span>' + py.label
+      + (off ? '<i class="pgsoon">PG 준비 중</i>' : '') + '</button>';
   }
-  h += '</div>' + (f.pay === "bank" ? bankBoxHtml(payable()) : '') + rcptHtml()
+  /* 무통장입금만 받으므로 계좌 박스는 누르지 않아도 항상 보이게 */
+  h += '</div>' + bankBoxHtml(payable()) + rcptHtml()
     + '<div class="agree' + (f.agree ? '' : '') + '" id="agreeBox">'
     + '<input type="checkbox" id="agreeCk"' + (f.agree ? ' checked' : '') + '>'
     + '<span><b>주문 내용을 확인했고 주문에 동의합니다.</b><br>주문서를 보내면 사장님이 확인한 뒤 연락드려요.</span>'
@@ -2492,9 +2504,11 @@ function pay(){
   }
   if (!f.agree){ toast("주문 내용 확인에 동의해 주세요"); $("#agreeBox").classList.add("bad"); return; }
 
+  /* 제출 방어 — 어떤 경로로 값이 들어와도 무통장입금으로만 접수한다 */
+  f.pay = PAY_ONLY;
   var btn = $("#payBtn");
-  var payName = "";
-  for (var i=0;i<PAYS.length;i++) if (PAYS[i].key === f.pay) payName = PAYS[i].label;
+  var payName = "무통장입금";
+  for (var i=0;i<PAYS.length;i++) if (PAYS[i].key === PAY_ONLY) payName = PAYS[i].label;
   btn.disabled = true;
   btn.textContent = "주문 접수 중…";
 
@@ -2858,7 +2872,13 @@ function bind(){
     var lg = e.target.closest("[data-login]");
     if (lg){ login(lg.getAttribute("data-login")); return; }
     var payB = e.target.closest("[data-pay]");
-    if (payB){ state.form.pay = payB.getAttribute("data-pay"); renderCheckout(); return; }
+    if (payB){
+      if (payB.getAttribute("data-pay") !== PAY_ONLY){
+        toast("지금은 무통장입금만 받아요 · 카드·간편결제는 PG 준비 중이에요");
+        return;
+      }
+      state.form.pay = PAY_ONLY; renderCheckout(); return;
+    }
     var rcB = e.target.closest("[data-rcpt]");
     if (rcB){
       state.form.receiptType = rcB.getAttribute("data-rcpt");
