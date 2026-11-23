@@ -437,6 +437,18 @@ a{color:inherit}
 .dtrack span.on:first-child{background:var(--mint);color:#fff}
 .dmsg{margin:0 0 4px;padding:11px 12px;border-radius:10px;background:var(--mint-l2);border:1px solid #CFEFED;color:#0B7C77;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.45;text-align:center}
 
+/* ── 무통장입금 계좌 박스 ─────────────── */
+.bankbox{margin:12px 0 0;background:#EEF4FF;border:1.5px solid #CFE0FF;border-radius:12px;padding:14px;text-align:left}
+.bankbox .bbt{display:flex;align-items:center;gap:6px;font-size:13.5px;font-weight:800;color:#265FBF;letter-spacing:-.2px}
+.bankbox .bbt .bbi{font-size:17px;line-height:1}
+.bankbox .bbno{margin-top:7px;font-size:18px;font-weight:800;color:#123B85;letter-spacing:-.3px}
+.bankbox .bbno b{font-size:14px;color:#265FBF;margin-right:5px}
+.bankbox .bbh{margin-top:3px;font-size:13.5px;font-weight:800;color:#3B5C99;letter-spacing:-.2px}
+.bankbox .bbwarn{margin-top:10px;background:#FFF6E5;border:1px solid #F3D9A4;border-radius:9px;padding:9px 11px;font-size:13.5px;font-weight:800;color:#8A5A00;letter-spacing:-.2px;line-height:1.45}
+.bankbox .bbcopy{margin-top:11px;width:100%;height:48px;border-radius:10px;background:#265FBF;color:#fff;font-size:15.5px;font-weight:800;letter-spacing:-.3px}
+.bankbox .bbcopy:active{background:#1B4B9C}
+.bankbox .bbnote{margin:9px 0 0;font-size:12px;color:#4A5F82;line-height:1.55;letter-spacing:-.1px}
+
 /* ── v4 · 진행 중인 내 주문 ─────────────── */
 .ordstrip{display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--line);padding:9px 16px;font-size:13px;letter-spacing:-.2px}
 .ordstrip .oi{font-size:17px;line-height:1;flex:0 0 auto}
@@ -701,6 +713,11 @@ var STORE = {
   biz: "421-28-01608",
   mailorder: "신고 진행 중 (20261123-31137180)"
 };
+
+/* 무통장입금 계좌 (사장님 확인) — 예금주까지 표시 */
+var BANK = { bank: "NH농협은행", no: "302-1803-5017-81", holder: "황관훈" };
+/* 새 주문을 사장님 폰으로 푸시 (nt fy 앱 구독) — 실패해도 주문 흐름은 그대로 */
+var NTFY_URL = "https://ntfy.sh/hoonie-dangu-order-914288";
 
 var ZONES = {
   pickup: { key:"pickup", name:"포장(매장픽업)", short:"포장", icon:"🏪", min:0,
@@ -1306,6 +1323,60 @@ function saveOrders(){
   try { localStorage.setItem(ORDERS_KEY, JSON.stringify(state.orders)); } catch(e){}
 }
 function lastOrder(){ return state.orders.length ? state.orders[0] : null; }
+
+/* ── 무통장입금 계좌 박스 · 복사 버튼 ─────────────────────── */
+function bankBoxHtml(total){
+  return '<div class="bankbox" id="bankBox">'
+    + '<div class="bbt"><span class="bbi">🏦</span>무통장입금 계좌</div>'
+    + '<div class="bbno"><b>' + BANK.bank + '</b>' + BANK.no + '</div>'
+    + '<div class="bbh">예금주: ' + BANK.holder + '</div>'
+    + '<div class="bbwarn">입금이 확인된 후 상품 준비 및 배달이 출발합니다.</div>'
+    + '<button type="button" class="bbcopy" id="bankCopy">📋 계좌번호 복사</button>'
+    + (total ? '<p class="bbnote">입금하실 금액: <b>' + money(total) + '원</b> · 입금자명을 주문자 이름과 같게 적어 주세요.</p>'
+             : '<p class="bbnote">입금자명을 주문자 이름과 같게 적어 주세요.</p>')
+    + '</div>';
+}
+function copyBank(){
+  var no = BANK.no;
+  function done(){ toast("계좌번호 " + no + " 복사했어요"); }
+  function fallback(){
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = no; ta.setAttribute("readonly", "");
+      ta.style.position = "fixed"; ta.style.top = "-1000px"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, no.length);
+      document.execCommand("copy"); document.body.removeChild(ta); done();
+    } catch(e){ toast("계좌번호: " + no); }
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(no).then(done).catch(fallback);
+  } else fallback();
+}
+function bindBankCopy(){
+  var b = $("#bankCopy");
+  if (b) b.addEventListener("click", copyBank);
+}
+
+/* ── 새 주문을 사장님 폰으로 푸시 (ntfy) ────────────────────
+   주문 저장 뒤 비동기로 보낸다. 실패해도 주문 완료 화면과 저장은 그대로. */
+function pushNewOrderAlert(ord){
+  try {
+    if (!ord || !window.fetch) return;
+    var yname = Number(ord.total || 0).toLocaleString("ko-KR");
+    var body = "새 주문! [" + (ord.mode === "pickup" ? "포장" : "배달") + "] · "
+             + (ord.name || "손님") + "님 · " + yname + "원"
+             + (ord.depositor ? " · 입금자명 " + ord.depositor : "");
+    fetch(NTFY_URL, {
+      method: "POST",
+      headers: {
+        "Title": "Hoonie Dangu New Order",   /* ntfy Title 헤더는 ASCII 만 허용 */
+        "Priority": "high",
+        "Tags": "bell,strawberry"
+      },
+      body: body
+    }).catch(function(){});
+  } catch(e){}          /* 알림 실패가 주문을 막지 않는다 */
+}
 /* 주문 단계 — 1 접수 대기(received) → 2 주문 접수(accepted)
              → 3 배달 시작(delivering) · 픽업 가능(ready) → 4 완료(done)
    예전에 저장된 preparing 은 배달이면 delivering, 포장이면 ready 로 읽는다. */
@@ -2347,7 +2418,7 @@ function renderCheckout(){
     h += '<button class="paybtn' + (f.pay===py.key ? ' on' : '') + '" data-pay="' + py.key + '">'
       + '<span>' + py.icon + '</span>' + py.label + '</button>';
   }
-  h += '</div>' + rcptHtml()
+  h += '</div>' + (f.pay === "bank" ? bankBoxHtml(payable()) : '') + rcptHtml()
     + '<div class="agree' + (f.agree ? '' : '') + '" id="agreeBox">'
     + '<input type="checkbox" id="agreeCk"' + (f.agree ? ' checked' : '') + '>'
     + '<span><b>주문 내용을 확인했고 주문에 동의합니다.</b><br>주문서를 보내면 사장님이 확인한 뒤 연락드려요. 절임배추는 주문 후 환불이 어렵습니다.</span>'
@@ -2398,6 +2469,7 @@ function bindCheckout(){
     });
   }
   bindInput("ckName", "name", "fName");
+  bindBankCopy();
   bindInput("ckPhone", "phone", "fPhone");
   bindInput("ckAddr", "addr", "fAddr");
   bindInput("ckMemo", "memo", "");
@@ -2480,6 +2552,7 @@ function pay(){
     rememberMyOrder(ord.no);
     saveOrders();
     pushOrder(ord);          /* 공용 DB에 올려 사장님 화면에 바로 보이게 */
+    pushNewOrderAlert(ord);  /* 사장님 폰으로 새 주문 푸시 (실패해도 주문은 그대로) */
     saveRecent();
     decStock();
     if (usedCoupon) markCouponUsed();
@@ -2561,6 +2634,8 @@ function showDone(ord){
       + '<span>' + money(it.sum) + '원</span></div>';
   }
   h += '</div></div>';
+  /* 무통장입금 주문이면 완료 화면에도 계좌를 크게 보여 준다 */
+  if (String(o.pay || "").indexOf("무통장") > -1) h += bankBoxHtml(o.total);
 
   var guide = "";
   if (o.mode === "pickup"){
@@ -2595,6 +2670,7 @@ function showDone(ord){
   $("#doneBody").innerHTML = h;
   showView("done");
   window.scrollTo(0,0);
+  bindBankCopy();
   var dc = $("#doneClaim");
   if (dc) dc.addEventListener("click", function(){
     var first = (o.items && o.items.length) ? o.items[0].pid : "";
