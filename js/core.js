@@ -194,8 +194,12 @@ function dbSeenSave(m){
   try { localStorage.setItem(DBSEEN_KEY, JSON.stringify(m)); } catch(e){}
 }
 /* present = 이번 조회에서 DB에 있던 주문번호 · asked = 이번에 물어본 주문번호 (null = 전체 목록을 다 받아 옴, [] = 아무것도 판단하지 않음)
-   → {kept, dead} */
-function splitDeletedOrders(list, present, asked){
+   opts.reconcile = true 면 'DB에서 확인된 적은 없지만 오래된' 주문도 의심 목록 (orphans) 으로 빼 준다
+   → {kept, dead, orphans} */
+function splitDeletedOrders(list, present, asked, opts){
+  opts = opts || {};
+  var minAge = (typeof opts.minAge === "number") ? opts.minAge : DBSEEN_MIN_AGE;
+  var reconcile = !!opts.reconcile;
   var seen = dbSeenRead(), has = {}, touched = false, t = Date.now();
   (present || []).forEach(function(no){
     if (!no) return;
@@ -205,13 +209,17 @@ function splitDeletedOrders(list, present, asked){
   if (touched) dbSeenSave(seen);
   var only = null;
   if (asked){ only = {}; asked.forEach(function(no){ if (no) only[no] = 1; }); }
-  var kept = [], dead = [];
+  var kept = [], dead = [], orphans = [];
   (list || []).forEach(function(o){
     var no = o && (o.no || o.id);
     if (!no){ kept.push(o); return; }
-    var old = (t - Number(o.at || 0)) > DBSEEN_MIN_AGE;
-    if (!has[no] && seen[no] && old && (!only || only[no])) dead.push(no);
-    else kept.push(o);
+    if (o.keepLocal){ kept.push(o); return; }          /* 사장님이 '되돌리기'한 주문은 건드리지 않는다 */
+    var old = (t - Number(o.at || 0)) > minAge;
+    if (!has[no] && old && (!only || only[no])){
+      if (seen[no]) dead.push(no);                     /* DB에서 확인된 뒤 사라진 주문 = 지운 주문 */
+      else if (reconcile) orphans.push(o);             /* DB에 올라간 적 없는 오래된 주문 = 의심 */
+      else kept.push(o);
+    } else kept.push(o);
   });
-  return {kept: kept, dead: dead};
+  return {kept: kept, dead: dead, orphans: orphans};
 }

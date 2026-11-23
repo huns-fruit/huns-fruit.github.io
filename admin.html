@@ -8,8 +8,8 @@
 <meta name="description" content="단구점 소매몰 사장님 페이지 — 오늘 들어온 주문 관리, 상품 가격·품절·남은 수량·사장님 코멘트 즉시 수정.">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
-<link rel="stylesheet" href="css/base.css?v=20261124g">
-<link rel="stylesheet" href="css/admin.css?v=20261124g">
+<link rel="stylesheet" href="css/base.css?v=20261124h">
+<link rel="stylesheet" href="css/admin.css?v=20261124h">
 </head>
 <body>
 <div class="app">
@@ -46,6 +46,7 @@
     <div class="sum" title="오늘 몫 매출 — 오늘 접수된 주문 + 어제 접수해서 오늘 배달·픽업하는 주문 (취소 제외)"><b id="sumSales">0원</b><span>오늘 매출</span></div>
     <div class="sum amber"><b id="sumWait">0</b><span>준비할 주문</span></div>
   </div>
+  <div class="orphanbar" id="orphanBar" hidden></div>
   <div class="filters" id="filters">
     <button data-f="all" class="on">전체 <em>0</em></button>
     <button data-f="received">🆕 새 주문 <em>0</em></button>
@@ -95,8 +96,8 @@
 <div class="cxmodal" id="cxModal" hidden></div>
 <div class="toast" id="toast"></div>
 
-<script src="js/core.js?v=20261124g"></script>
-<script src="js/catalog.js?v=20261124g"></script>
-<script src="js/admin.js?v=20261124g"></script>
+<script src="js/core.js?v=20261124h"></script>
+<script src="js/catalog.js?v=20261124h"></script>
+<script src="js/admin.js?v=20261124h"></script>
 </body>
 </html>

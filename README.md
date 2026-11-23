@@ -8,4 +8,4 @@
 - https://huns-fruit.github.io/admin.html — 사장님 화면
 - /shop.html · /shop-admin.html — 옛 주소 (새 주소로 넘김)
 
-배포 버전: 20261124g (2026-11-24)
+배포 버전: 20261124h (2026-11-24)

@@ -33,6 +33,55 @@ function pullCatalog(){
 
 
 var ORDERS_PULL_LIMIT = 100;
+/* 두 시간이 넘었는데도 공용 DB에 올라간 적 없는 주문 — 목록에서는 빼되 보관해 두고 되돌릴 수 있게 한다 */
+var ORPHAN_MIN_AGE = 2 * 60 * 60 * 1000;
+var ORPHAN_KEY = "hoonie_retail_orders_orphans_v1";
+function readOrphans(){
+  try { var d = JSON.parse(localStorage.getItem(ORPHAN_KEY) || "[]"); return Array.isArray(d) ? d : []; }
+  catch(e){ return []; }
+}
+function saveOrphans(list){
+  var cur = readOrphans(), byNo = {};
+  cur.forEach(function(o){ if (o && o.no) byNo[o.no] = o; });
+  (list || []).forEach(function(o){ if (o && o.no) byNo[o.no] = o; });
+  var out = Object.keys(byNo).map(function(k){ return byNo[k]; });
+  out.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  try { localStorage.setItem(ORPHAN_KEY, JSON.stringify(out.slice(0, 20))); } catch(e){}
+}
+function renderOrphanBar(){
+  var box = $("#orphanBar");
+  if (!box) return;
+  var list = readOrphans();
+  if (!list.length){ box.hidden = true; box.innerHTML = ""; return; }
+  box.innerHTML = '<span>🗂 <b>공용 DB에 없는 주문 ' + list.length + '건</b>을 목록에서 뺐어요'
+    + '<i>결제 실패·지운 주문이면 그대로 두시고, 손님 주문이면 되돌려 주세요.</i></span>'
+    + '<div class="obtns"><button type="button" id="orphanRestore">되돌리기</button>'
+    + '<button type="button" id="orphanDrop" class="drop" aria-label="안내 닫기">✕</button></div>';
+  box.hidden = false;
+}
+function dropOrphans(){
+  try { localStorage.removeItem(ORPHAN_KEY); } catch(e){}
+  renderOrphanBar();
+  toast("안내를 닫았어요");
+}
+function restoreOrphans(){
+  var list = readOrphans();
+  if (!list.length) return;
+  var cur = readOrders();
+  var byNo = {};
+  cur.forEach(function(o){ if (o && o.no) byNo[o.no] = o; });
+  list.forEach(function(o){
+    o.keepLocal = true;                  /* 다음 조회에서 또 빠지지 않게 */
+    if (!byNo[o.no]) byNo[o.no] = o;
+  });
+  var all = Object.keys(byNo).map(function(k){ return byNo[k]; });
+  all.sort(function(a, b){ return (b.at || 0) - (a.at || 0); });
+  writeOrders(all);
+  try { localStorage.removeItem(ORPHAN_KEY); } catch(e){}
+  renderOrders();
+  renderOrphanBar();
+  toast("주문 " + list.length + "건을 목록으로 되돌렸어요");
+}
 function pullOrders(){
   if (!sbOn()) return Promise.resolve();
   return sbCall("retail_orders?select=id,status,data&order=created_at.desc&limit=" + ORDERS_PULL_LIMIT).then(function(rows){
@@ -62,11 +111,16 @@ function pullOrders(){
       }
     });
     /* 공용 DB에서 지운 주문(결제 실패·중복)은 이 기기 목록에서도 뺀다.
+       DB에 올린 적이 없는 오래된 주문도 목록에서는 빼되, 지워 버리지 않고 보관해 두고
+       카드 아래 안내에서 '되돌리기'를 누를 수 있게 한다(손님 주문이 통신 오류로 안 올라간 경우).
        100건을 다 받아 왔을 땐 오래된 주문을 지운 것으로 오해할 수 있어 건드리지 않는다. */
+    var complete = rows.length < ORDERS_PULL_LIMIT;
     var split = splitDeletedOrders(Object.keys(byNo).map(function(k){ return byNo[k]; }), dbIds,
-                                   rows.length < ORDERS_PULL_LIMIT ? null : []);
-    if (split.dead.length){
-      split.dead.forEach(function(no){ delete byNo[no]; delete alarm.pending[no]; });
+                                   complete ? null : [], {reconcile: complete, minAge: ORPHAN_MIN_AGE});
+    var gone = split.dead.concat(split.orphans.map(function(o){ return o.no; }));
+    if (split.orphans.length) saveOrphans(split.orphans);
+    if (gone.length){
+      gone.forEach(function(no){ delete byNo[no]; delete alarm.pending[no]; });
       changed = true;
     }
     if (!changed) return;
@@ -75,6 +129,7 @@ function pullOrders(){
     writeOrders(list);
     renderOrders();
     checkNewOrders(list);
+    renderOrphanBar();
   }).catch(function(){});
 }
 function pushOrderStatus(no, next){
@@ -1145,6 +1200,11 @@ function bind(){
     state.filter = b.getAttribute("data-f");
     renderOrders();
   });
+  var ob = $("#orphanBar");
+  if (ob) ob.addEventListener("click", function(e){
+    if (e.target.closest("#orphanRestore")){ restoreOrphans(); return; }
+    if (e.target.closest("#orphanDrop")) dropOrphans();
+  });
   $("#orderList").addEventListener("click", function(e){
     var cx = e.target.closest("[data-cancel]");
     if (cx){ openCancel(cx.getAttribute("data-cancel")); return; }
@@ -1302,6 +1362,7 @@ function init(){
   setInterval(tick, 30000);
   renderOrders();
   renderClaimNums();
+  renderOrphanBar();
   bind();
   alarmBoot();          /* 알림 토글·새 주문 감지 준비 (첫 화면 주문은 '이미 본 것' 처리) */
   syncStart();          /* 손님 화면·공용 DB와 5초마다 맞추기 */
