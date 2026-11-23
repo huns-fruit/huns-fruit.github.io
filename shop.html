@@ -1267,7 +1267,7 @@ function pickupSlots(){
   }
   if (m + 30 <= closeM){
     list.push({key:"soon30", label:"30분 뒤 바로 픽업",
-               sub:"지금 바로 준비해 둘게요 · " + PICKUP_HOURS, eta:"30분 뒤 픽업"});
+               sub:"지금 바로 준비해 둘게요", eta:"30분 뒤 픽업"});
   } else {
     list.push({key:"today_close", label:"오늘 " + pad2(PICKUP_CLOSE_H) + ":00까지 픽업",
                sub:"매장 마감 전에 가져가기", eta:"오늘 " + pad2(PICKUP_CLOSE_H) + ":00까지 픽업"});
@@ -2005,7 +2005,7 @@ function renderCart(){
   }
   var h = modeSegHtml();
   h += '<p class="seghint">' + (state.mode === "pickup"
-      ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음 · 포장 " + PICKUP_HOURS
+      ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음<br>🕒 포장 가능 " + PICKUP_HOURS
       : (state.zone === "city" ? "🛵 원주 시내권 · 30,000원 이상 무료배달" : "🚛 기업·태장·우산동 · 50,000원 이상 무료배달")) + '</p>';
   if (state.mode === "delivery"){
     h += zoneChipsHtml();
