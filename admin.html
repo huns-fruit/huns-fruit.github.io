@@ -898,11 +898,7 @@ var IMG = {
 
 function P(o){ return o; }
 var PRODUCTS = [
-  /* ── 오늘특가 · 절임배추 ── */
-  P({id:"pickle", name:"충주·괴산 절임배추", unit:"20kg 1박스", cats:["deal","egg"], img:"cabbage",
-     badges:[["예약주문","rsv"]], origin:"국내산", desc:"김장 20kg · 절임 완료 상태",
-     opts:[{label:"배송", sub:"집 앞까지", price:43000}, {label:"픽업", sub:"단구점에서 수령", price:40000}],
-     warn:"절임배추는 최소 4일 전 주문, 매주 금요일 배송·픽업만 가능하며 주문 후 환불이 어렵습니다. 배송 43,000원 / 픽업 40,000원."}),
+  /* ── 오늘특가 ── */
 
   P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"C",
      badges:[["행사","hot"]], origin:"필리핀산", desc:"오늘만 이 가격 · 1인 1송이", price:1000, stock:8,
@@ -1344,7 +1340,7 @@ function seedOrder(){
     mode: "pickup", zone: "pickup", slot: "soon30", slotLabel: "30분 뒤 바로 픽업", eta: "30분 뒤 픽업",
     sub: sub, disc: 1000, pay: "카카오페이", total: sub - 1000,
     name: "김단골", phone: "010-1234-5678", addr: STORE.name + " 단구점",
-    memo: "30분 뒤에 갈게요", items: items, pickle: false,
+    memo: "30분 뒤에 갈게요", items: items,
     status: "received", statusAt: Date.now(), demo: true
   };
   var list = readOrders();
