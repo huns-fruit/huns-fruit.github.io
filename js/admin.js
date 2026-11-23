@@ -47,8 +47,16 @@ function pullOrders(){
       if (!cur){
         d.no = no; d.status = normStatus(r.status || d.status, d.mode);
         byNo[no] = d; changed = true;
-      } else if (r.status && normStatus(r.status, cur.mode) !== oStatus(cur)){
-        cur.status = normStatus(r.status, cur.mode); cur.statusAt = cur.statusAt || Date.now(); changed = true;
+      } else {
+        var nx = r.status ? normStatus(r.status, cur.mode) : "";
+        if (nx && nx !== oStatus(cur)){
+          cur.status = nx; cur.statusAt = cur.statusAt || Date.now();
+          /* 사장님이 취소한 경우 사유도 같이 받아 온다 */
+          if (d.cancelReason) cur.cancelReason = d.cancelReason;
+          if (d.cancelAt) cur.cancelAt = d.cancelAt;
+          if (d.prevStatus) cur.prevStatus = d.prevStatus;
+          changed = true;
+        }
       }
     });
     if (!changed) return;
@@ -60,16 +68,23 @@ function pullOrders(){
   }).catch(function(){});
 }
 function pushOrderStatus(no, next){
-  if (!sbOn()) return Promise.resolve();
+  if (!sbOn()) return Promise.resolve(false);
   var list = readOrders(), found = null;
   for (var i=0;i<list.length;i++) if (list[i].no === no){ found = list[i]; break; }
-  if (!found) return Promise.resolve();
+  if (!found) return Promise.resolve(false);
   found.status = next;
-  return sbCall("retail_orders", {
-    method: "POST",
-    headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify([{ id: no, data: found, status: next, created_at: isoAt(found.at), updated_at: isoAt() }])
-  }).catch(function(){});
+  function send(left){
+    return sbCall("retail_orders", {
+      method: "POST",
+      headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify([{ id: no, data: found, status: next, created_at: isoAt(found.at), updated_at: isoAt() }])
+    }).then(function(){ return true; }).catch(function(){
+      if (left <= 0) return false;
+      /* 한 번 더 시도 — 손님 화면이 취소·진행 상태를 놓치지 않게 */
+      return new Promise(function(r){ setTimeout(r, 1200); }).then(function(){ return send(left - 1); });
+    });
+  }
+  return send(1);
 }
 
 /* ── 사진 접수 ── */
@@ -657,7 +672,8 @@ function todayOrders(){
 /* 단계 칩 → 그 단계에 해당하는 주문들 */
 var FILTER_ST = {
   received: ["received"], accepted: ["accepted"], delivering: ["delivering"],
-  ready: ["ready"], done: ["done"], active: ["accepted", "delivering", "ready"]
+  ready: ["ready"], done: ["done"], canceled: ["canceled"],
+  active: ["accepted", "delivering", "ready"]
 };
 function filteredOrders(){
   var list = todayOrders();
@@ -715,8 +731,13 @@ function orderCardHtml(o){
     + (o.disc > 0 ? '<span class="disc">포장 할인 -' + money(o.disc) + '원</span>' : '')
     + '<span>' + esc(o.pay || "결제") + (o.pay ? '' : '') + '</span>'
     + '<b class="tot">결제 ' + money(o.total) + '원</b></div>';
+  if (st === "canceled"){
+    h += '<div class="ocx"><b>❌ 취소된 주문</b>'
+      + '<span>사유: ' + esc(o.cancelReason || "기타") + (o.cancelAt ? ' · ' + esc(hhmm(o.cancelAt)) : '') + '</span></div>';
+  }
   var pick = o.mode === "pickup";
   var step3 = pick ? "ready" : "delivering";
+  var back = (st === "canceled" && o.prevStatus && isLiveStatus(o.prevStatus)) ? o.prevStatus : "received";
   h += '<div class="oacts">';
   if (st === "received"){
     h += '<button class="primary" data-act="accepted">접수하기</button>';
@@ -726,11 +747,18 @@ function orderCardHtml(o){
   } else if (st === "delivering" || st === "ready"){
     h += '<button class="primary" data-act="done">' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
       +  '<button class="ghost" data-act="accepted">되돌리기</button>';
+  } else if (st === "canceled"){
+    h += '<button class="ghost" data-act="' + back + '">↺ 주문 되돌리기</button>';
   } else {
     h += '<button class="done" disabled>✓ ' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
       +  '<button class="ghost" data-act="' + step3 + '">되돌리기</button>';
   }
-  h += '</div></article>';
+  h += '</div>';
+  /* 진행 중인 주문(접수·배달·픽업 전)에는 주문 취소 버튼 */
+  if (isLiveStatus(st)){
+    h += '<div class="oacts cx"><button class="danger" data-cancel="' + esc(o.no) + '">✕ 주문 취소</button></div>';
+  }
+  h += '</article>';
   return h;
 }
 function renderOrders(){
@@ -738,6 +766,7 @@ function renderOrders(){
   $("#tabOrderNum").textContent = today.length;
   var sales = 0, wait = 0;
   today.forEach(function(o){
+    if (oStatus(o) === "canceled") return;      /* 취소된 주문은 매출·준비 건수에서 뻔다 */
     sales += Number(o.total || 0);
     if (oStatus(o) !== "done") wait++;
   });
@@ -745,7 +774,7 @@ function renderOrders(){
   $("#sumSales").textContent = money(sales) + "원";
   $("#sumWait").textContent = wait + "건";
 
-  var cnt = {all: today.length, received: 0, accepted: 0, delivering: 0, ready: 0, done: 0, active: 0, delivery: 0, pickup: 0};
+  var cnt = {all: today.length, received: 0, accepted: 0, delivering: 0, ready: 0, done: 0, canceled: 0, active: 0, delivery: 0, pickup: 0};
   today.forEach(function(o){
     var st = oStatus(o);
     cnt[st] = (cnt[st] || 0) + 1;
@@ -799,12 +828,14 @@ function setStatus(no, next){
   var TOAST = {received: "새 주문으로 되돌렸어요", accepted: "접수했어요 · 손님 화면에 ‘주문 접수’로 보여요",
                delivering: "배달 출발로 바꿨어요 · 손님 화면에 ‘🚚 배달 시작’",
                ready: "포장 준비 완료 · 손님 화면에 ‘🛍️ 픽업 가능’",
-               done: "완료 처리했어요 · 손님 화면에 바로 보여요"};
+               done: "완료 처리했어요 · 손님 화면에 바로 보여요",
+               canceled: "주문을 취소했어요 · 손님 화면에 ‘❌ 주문 취소’로 보여요"};
   var list = readOrders();
   for (var i=0;i<list.length;i++){
     if (list[i].no === no){
       list[i].status = next;
       list[i].statusAt = Date.now();
+      if (next !== "canceled") clearCancelFields(list[i]);   /* 취소를 물리면 취소 기록도 지운다 */
       break;
     }
   }
@@ -813,6 +844,58 @@ function setStatus(no, next){
   renderOrders();
   renderBanner(); refreshAlarmUI(); ensureRinging();
   toast(TOAST[next] || "상태를 바꿨어요");
+}
+
+/* ── 주문 취소 (사장님) ─────────────────────────────
+   진행 중인 주문 카드의 ‘주문 취소’ → 사유를 고르면 canceled 로 바뀌고
+   취소 사유·취소 시각·되돌릴 상태(prevStatus)를 주문에 함께 저장한다.
+   손님 화면은 5초 폴링으로 status=’canceled’ 를 받아 바로 취소 화면으로 바뀐다. */
+function cancelOrder(no, reason){
+  var list = readOrders(), found = null;
+  for (var i=0;i<list.length;i++) if (list[i].no === no){ found = list[i]; break; }
+  if (!found) return;
+  var prev = oStatus(found);
+  if (!isLiveStatus(prev)) return;            /* 완료·이미 취소된 주문은 취소 불가 */
+  found.prevStatus = prev;
+  found.status = "canceled";
+  found.cancelReason = reason || "기타";
+  found.cancelAt = Date.now();
+  found.statusAt = Date.now();
+  writeOrders(list);
+  pushOrderStatus(no, "canceled").then(function(ok){
+    if (!ok) toast("⚠️ 공용 DB에 취소를 못 올렸어요 · 손님 화면에 안 보이면 다시 취소해 주세요");
+  });
+  closeCancel();
+  renderOrders();
+  renderBanner(); refreshAlarmUI(); ensureRinging();
+  toast("주문을 취소했어요 · 손님 화면에 ‘❌ 주문 취소’로 보여요");
+}
+function openCancel(no){
+  var list = readOrders(), found = null;
+  for (var i=0;i<list.length;i++) if (list[i].no === no){ found = list[i]; break; }
+  if (!found) return;
+  var pick = found.mode === "pickup";
+  var h = '<div class="cxcard" role="dialog" aria-modal="true" aria-labelledby="cxTitle">'
+    + '<div class="cxhead" id="cxTitle">✕ 주문을 취소할까요?</div>'
+    + '<div class="cxwho"><b>' + esc(found.no) + '</b> · ' + esc(found.name || "손님") + ' · '
+    +   (pick ? "🏪 포장" : "🛵 배달") + ' · ' + money(found.total || 0) + '원</div>'
+    + '<p class="cxp">취소하면 손님 화면에 <b>❌ 주문 취소</b>로 바로 보입니다. 취소 사유를 골라 주세요.</p>'
+    + '<div class="cxopts">';
+  CANCEL_REASONS.forEach(function(r){
+    h += '<button type="button" data-cx="' + esc(r) + '" data-cxno="' + esc(found.no) + '">' + esc(r) + '</button>';
+  });
+  h += '</div><div class="cxact"><button type="button" class="cxno" id="cxClose">그만두기</button></div>'
+    + '<div class="cxhint">잘못 눌렀다면 취소된 주문 카드에서 <b>↺ 주문 되돌리기</b>를 누르면 됩니다.</div>'
+    + '</div>';
+  var box = $("#cxModal");
+  if (!box) return;
+  box.innerHTML = h;
+  box.hidden = false;
+}
+function closeCancel(){
+  var box = $("#cxModal");
+  if (!box) return;
+  box.hidden = true; box.innerHTML = "";
 }
 
 /* ── 사진 접수 ──────────────────────────── */
@@ -1010,12 +1093,23 @@ function bind(){
     renderOrders();
   });
   $("#orderList").addEventListener("click", function(e){
+    var cx = e.target.closest("[data-cancel]");
+    if (cx){ openCancel(cx.getAttribute("data-cancel")); return; }
     var b = e.target.closest("[data-act]");
     if (!b) return;
     var card = e.target.closest(".ocard");
     if (!card) return;
     setStatus(card.getAttribute("data-no"), b.getAttribute("data-act"));
   });
+
+  /* 주문 취소 사유 모달 */
+  var cxm = $("#cxModal");
+  if (cxm) cxm.addEventListener("click", function(e){
+    var r = e.target.closest("[data-cx]");
+    if (r){ cancelOrder(r.getAttribute("data-cxno"), r.getAttribute("data-cx")); return; }
+    if (e.target.closest("#cxClose") || e.target === cxm) closeCancel();
+  });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeCancel(); });
 
   /* 사진 접수 탭 */
   $("#clFilters").addEventListener("click", function(e){

@@ -108,14 +108,24 @@ function pullCatalog(){
 function pullOrderStatus(){
   if (!sbOn() || !state.orders.length) return Promise.resolve();
   var ids = state.orders.slice(0, 20).map(function(o){ return o.no; });
-  return sbCall("retail_orders?select=id,status&id=in.(" + encodeURIComponent(sbQuoted(ids)) + ")").then(function(rows){
+  var sel = encodeURIComponent("id,status,cancelReason:data->>cancelReason,cancelAt:data->>cancelAt");
+  return sbCall("retail_orders?select=" + sel + "&id=in.(" + encodeURIComponent(sbQuoted(ids)) + ")").then(function(rows){
     if (!rows || !rows.length) return;
     var byNo = {};
-    rows.forEach(function(r){ byNo[r.id] = r.status; });
+    rows.forEach(function(r){ byNo[r.id] = r; });
     var changed = false;
     state.orders.forEach(function(o){
-      var st = byNo[o.no] ? normStatus(byNo[o.no], o.mode) : "";
+      var r = byNo[o.no];
+      if (!r) return;
+      var st = normStatus(r.status, o.mode);
       if (st && st !== oStatus(o)){ o.status = st; o.statusAt = Date.now(); changed = true; }
+      /* 사장님이 취소한 경우 사유도 같이 받아 온다 */
+      if (oStatus(o) === "canceled"){
+        if (r.cancelReason && r.cancelReason !== o.cancelReason){ o.cancelReason = r.cancelReason; changed = true; }
+        if (r.cancelAt && r.cancelAt !== o.cancelAt){ o.cancelAt = r.cancelAt; changed = true; }
+      } else if (o.cancelReason){
+        clearCancelFields(o); changed = true;
+      }
     });
     if (!changed) return;
     saveOrders();
@@ -488,6 +498,7 @@ function pushNewOrderAlert(ord){
 
 function statusMsg(o){
   var st = oStatus(o), pick = o.mode === "pickup";
+  if (st === "canceled") return "가게에서 주문을 취소했어요" + (o.cancelReason ? " · 사유: " + o.cancelReason : "");
   if (st === "done") return pick ? "픽업이 끝났어요. 맛있게 드세요!" : "배달이 끝났어요. 맛있게 드세요!";
   if (st === "ready") return "매장에서 바로 받아 가세요!";
   if (st === "delivering") return "기사님이 출발했어요!";
@@ -497,6 +508,7 @@ function statusMsg(o){
 function statusHead(o, st){
   st = st || oStatus(o);
   var pick = o.mode === "pickup";
+  if (st === "canceled") return "❌ 주문이 취소되었어요";
   if (st === "done") return pick ? "✅ 픽업 완료" : "✅ 배달 완료";
   if (st === "ready") return "🛍️ 픽업 가능해요";
   if (st === "delivering") return "🚚 배달이 시작됐어요";
@@ -1405,12 +1417,13 @@ function renderOrderStrip(){
   if (!el) return;
   var o = lastOrder();
   if (!o){ el.hidden = true; el.innerHTML = ""; return; }
-  var st = statusLabel(o), done = oStatus(o) === "done";
+  var st = statusLabel(o), stt = oStatus(o), done = stt === "done", cx = stt === "canceled";
   el.hidden = false;
-  el.innerHTML = '<span class="oi">' + (done ? "✅" : "📦") + '</span>'
+  el.innerHTML = '<span class="oi">' + (cx ? "❌" : (done ? "✅" : "📦")) + '</span>'
     + '<div class="ot"><b>' + esc(o.no) + ' · ' + st + '</b>'
-    + '<small>' + (o.mode === "pickup" ? "🏪 포장" : "🛵 배달") + ' · ' + esc(o.slotLabel || "") + ' · ' + money(o.total) + '원</small></div>'
-    + '<span class="os' + (done ? " done" : "") + '">' + st + '</span>'
+    + '<small>' + (o.mode === "pickup" ? "🏪 포장" : "🛵 배달") + ' · ' + esc(o.slotLabel || "") + ' · ' + money(o.total) + '원'
+    + (cx && o.cancelReason ? ' · 사유 ' + esc(o.cancelReason) : '') + '</small></div>'
+    + '<span class="os' + (cx ? " cx" : (done ? " done" : "")) + '">' + st + '</span>'
     + '<button id="stripView">상세</button>';
   var b = $("#stripView");
   if (b) b.addEventListener("click", function(){ showDone(o); window.scrollTo(0,0); });
@@ -1680,14 +1693,21 @@ function showDone(ord){
   var st2 = pick ? "픽업 가능" : "배달 시작";
   var moved = (st === "delivering" || st === "ready" || st === "done");
   var z = o.mode === "pickup" ? ZONES.pickup : ZONES[o.zone];
-  var h = '<div class="dchk">' + (st === "delivering" ? "🛵" : (st === "ready" ? "🛍️" : "✓")) + '</div>'
+  var h = '<div class="dchk' + (st === "canceled" ? " cx" : "") + '">' + (st === "canceled" ? "✕" : (st === "delivering" ? "🛵" : (st === "ready" ? "🛍️" : "✓"))) + '</div>'
     + '<h1>' + statusHead(o, st) + '</h1>'
-    + '<p class="sub"><b>' + esc(o.name) + '</b>님, ' + (st === "received" ? '주문 고맙습니다.<br><span>' + statusMsg(live) + '</span>' : statusMsg(live)) + '</p>';
+    + '<p class="sub">' + (st === "canceled"
+        ? '<b>' + esc(o.name) + '</b>님, 주문이 취소되었어요.'
+          + (o.cancelReason ? '<br><span>취소 사유: <b>' + esc(o.cancelReason) + '</b></span>' : '')
+        : '<b>' + esc(o.name) + '</b>님, ' + (st === "received" ? '주문 고맙습니다.<br><span>' + statusMsg(live) + '</span>' : statusMsg(live))) + '</p>';
 
-  h += '<div class="dtrack">'
-    + '<span class="on">접수</span>'
-    + '<span class="' + (moved ? 'on' : '') + '">' + st2 + '</span>'
-    + '<span class="' + (st === "done" ? 'on' : '') + '">완료</span></div>';
+  if (st === "canceled"){
+    h += '<div class="dtrack cx"><span class="on">접수</span><span class="on cx">취소</span><span>완료</span></div>';
+  } else {
+    h += '<div class="dtrack">'
+      + '<span class="on">접수</span>'
+      + '<span class="' + (moved ? 'on' : '') + '">' + st2 + '</span>'
+      + '<span class="' + (st === "done" ? 'on' : '') + '">완료</span></div>';
+  }
   h += '<div class="dcard">'
     + '<div class="drow no"><span>주문번호</span><b>' + o.no + '</b></div>'
     + '<div class="drow"><span>받는 방법</span><b>' + z.icon + ' ' + z.name + '</b></div>';
@@ -1698,7 +1718,7 @@ function showDone(ord){
   }
   h += '<div class="drow"><span>받는 시간</span><b>' + esc(o.slotLabel || z.eta) + '</b></div>'
     + '<div class="drow"><span>진행 상태</span><b id="liveStatus">' + statusLabel(live) + '</b></div>'
-    + '<div class="dmsg" id="liveMsg">' + statusMsg(live) + '</div>'
+    + '<div class="dmsg' + (st === "canceled" ? " cx" : "") + '" id="liveMsg">' + statusMsg(live) + '</div>'
     + '<div class="drow"><span>결제 수단</span><b>' + esc(o.pay) + '</b></div>'
     + (o.depositor ? '<div class="drow"><span>입금자명</span><b>' + esc(o.depositor) + '</b></div>' : '')
     + (o.receiptNo ? '<div class="drow"><span>현금영수증</span><b>' + esc(o.receiptLabel || receiptLabel(o.receiptType)) + ' ' + esc(o.receiptNo) + '</b></div>' : '')
@@ -1741,8 +1761,15 @@ function showDone(ord){
   } else {
     guide += "<br><br>📦 가게에서 확인 중이에요. 위 진행 상태는 새로고침하지 않아도 자동으로 바뀝니다.";
   }
-  h += '<div class="dguide">' + guide + '</div>'
-    + '<button class="ghost" id="doneClaim">📷 받은 상품 이상하면 사진 접수</button>'
+  if (st === "canceled"){
+    /* 취소된 주문은 다른 안내 대신 취소 안내만 보여 준다 */
+    guide = "❌ <b>주문이 취소되었어요.</b>"
+      + (o.cancelReason ? "<br>취소 사유: <b>" + esc(o.cancelReason) + "</b>" : "")
+      + "<br>무통장입금으로 입금하셨다면 매장(" + STORE.tel + ")으로 연락 주세요."
+      + (o.memo ? "<br><br>📝 요청사항: " + esc(o.memo) : "");
+  }
+  h += '<div class="dguide' + (st === "canceled" ? " cx" : "") + '">' + guide + '</div>'
+    + (st === "canceled" ? "" : '<button class="ghost" id="doneClaim">📷 받은 상품 이상하면 사진 접수</button>')
     + '<button class="cta" id="doneOk">확인</button>'
     + '<button class="ghost" id="doneAgain">장바구니 다시 보기</button>'
     + '<p class="dfoot">훈이네과일야채 단구점 · ' + STORE.addr + '<br>문의 ' + STORE.tel + '</p>';

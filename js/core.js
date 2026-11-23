@@ -100,26 +100,42 @@ var GRADE_ALL = ["normal", "A", "home", "B", "C"];   // 사장님 페이지 등�
 
 
 /* ── 주문 상태 ──
-   손님 화면과 사장님 화면이 같은 규칙을 쓴다. 문구만 화면에 맞게 다르다. */
+   손님 화면과 사장님 화면이 같은 규칙을 쓴다. 문구만 화면에 맞게 다르다.
+   canceled(사장님이 주문 취소)는 done 과 같이 끝난 상태라 진행 단계로 되돌아가지 않는다. */
+var LIVE_STATUS = ["received", "accepted", "delivering", "ready"];   /* 취소할 수 있는 진행 중 상태 */
 function normStatus(st, mode){
   if (st === "preparing") return mode === "pickup" ? "ready" : "delivering";
   return st || "received";
 }
 function oStatus(o){ return normStatus(o && o.status, o && o.mode); }
+function isLiveStatus(st){ return LIVE_STATUS.indexOf(st) > -1; }
 function coreStatusLabel(o, forAdmin){
   var st = oStatus(o), pick = o.mode === "pickup";
   if (forAdmin){
+    if (st === "canceled") return "취소됨";
     if (st === "done") return pick ? "픽업 완료" : "배달 완료";
     if (st === "ready") return "픽업 대기";
     if (st === "delivering") return "배달 중";
     if (st === "accepted") return "접수 완료";
     return "새 주문";
   }
+  if (st === "canceled") return "❌ 주문 취소";
   if (st === "done") return pick ? "✅ 픽업 완료" : "✅ 배달 완료";
   if (st === "ready") return "🛍️ 픽업 가능";
   if (st === "delivering") return "🚚 배달 시작";
   if (st === "accepted") return "주문 접수";
   return "접수 대기";
+}
+
+/* 주문 취소 사유 — 사장님 화면에서 고르고, 손님 화면에 그대로 보인다 */
+var CANCEL_REASONS = ["입금 미확인", "상품 품절", "고객 요청", "기타"];
+
+/* 취소 기록 지우기 (되돌릴 때) */
+function clearCancelFields(o){
+  if (!o) return;
+  delete o.cancelReason;
+  delete o.cancelAt;
+  delete o.prevStatus;
 }
 
 function ov(pid){ return state.catalog[pid] || {}; }
