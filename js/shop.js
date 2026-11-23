@@ -22,21 +22,25 @@ var ZONES = {
 var PICKUP_DISCOUNT = 1000;
 var PICKUP_MIN = 15000;
 var COUPON_KEY = "hoonie_retail_pickup_coupon_v1";
+/* 오픈 기념 바나나 100원도 포장 쿠폰과 똑같이 하루 1회 — 사용한 날짜를 기기에 남긴다 */
+var BANANA_KEY = "hoonie_retail_banana_event_v1";   // {"date":"2026-11-24"}
 
-/* 오픈 기념 이벤트 — 3만 원 이상 '배달' 주문이면 바나나 1송이를 100원에 추가 (11/24~11/29, 주문당 1송이)
+/* 오픈 기념 이벤트 — 3만 원 이상 '배달' 주문이면 바나나 1송이를 100원에 추가 (11/24~11/29)
+   조건: 배달 전용 · 일반 상품 합계 3만 원 이상 · 주문당 1송이 · 하루 1회
    일반 상품 합계(subtotal)만 보고 판단하고, 이벤트 바나나는 장바구니 줄이 아니라 state.banana 로 따로 담는다.
    (바나나 행사 재고 8송이 제한과 섞이지 않게 하려는 것)
-   포장(매장픽업) 주문에는 적용하지 않는다 — 포장으로 바꾸면 자동으로 뺀다. */
+   포장(매장픽업) 주문에는 적용하지 않는다 — 포장으로 바꾸면 자동으로 뺀다.
+   하루 1회는 포장 쿠폰과 같이 사용한 날짜를 기기에 남겨 하루에 한 번만 적용한다. */
 var OPEN_EVENT = {
   from: "2026-11-24", to: "2026-11-29",
   min: 30000,
   price: 100,
   pid: "banana-event",
   name: "🍌 [오픈특가] 바나나 1송이",
-  label: "🍌 [오픈특가] 바나나 1송이 100원 추가하기 (+100원)",
+  label: "[오픈특가] 바나나 1송이 100원 추가하기 (+100원)",
   offNote: "🍌 바나나 100원 이벤트는 3만 원 이상 배달 주문 시에만 적용돼요",
-  banner: "🎉 오픈 기념 이벤트 (11/24~11/29) · 배달 3만 원 이상 주문 시 🍌 바나나 1송이 100원! (1인 1송이 한정)",
-  bannerSub: "3만 원 이상 배달 주문 시 장바구니에서 100원에 추가할 수 있어요 · 주문당 1송이 한정"
+  banner: "🎉 오픈 기념 이벤트 (11/24~11/29) · 배달 3만 원 이상 주문 시 🍌 바나나 1송이 100원! (하루 1회 · 1인 1송이 한정)",
+  bannerSub: "3만 원 이상 배달 주문 시 장바구니에서 100원에 추가할 수 있어요 · 하루 1회 · 주문당 1송이 한정"
 };
 
 
@@ -222,6 +226,7 @@ var state = {
   opt: null,         // {pid, oi, qty}
   couponDate: null,  // 포장 할인 마지막 사용일 (YYYY-MM-DD)
   banana: false,     // 오픈 기념 이벤트 바나나 1송이 100원 추가 여부
+  bananaDate: null,  // 바나나 100원 마지막 사용일 (YYYY-MM-DD) — 하루 1회
   slots: {},         // 받는 시간 선택 {pickup:"soon30", delivery_city:"today_pm", delivery_outer:"tomorrow_am"}
   recent: null,      // 최근 주문자 {name, phone, addr, at}
   catalog: {},       // 사장님 페이지가 고친 상품 정보 {pid:{price,opts,soldout,stock,comment}}
@@ -569,7 +574,17 @@ function pickupDiscount(){
    eventReady() = 배달 주문 + 3만 원 이상 (주문당 1송이 · 포장에는 적용 안 함) */
 function eventBase(){ return subtotal(); }
 function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase()); }
-function eventReady(){ return state.mode === "delivery" && state.cart.length > 0 && eventBase() >= OPEN_EVENT.min; }
+function bananaUsedToday(){ return state.bananaDate === todayStr(); }
+function markBananaUsed(){ state.bananaDate = todayStr(); save(); }
+function eventReady(){ return state.mode === "delivery" && state.cart.length > 0 && eventBase() >= OPEN_EVENT.min && !bananaUsedToday(); }
+/* 바나나 100원 상태: off(포장) / used(오늘 사용) / empty(빈 장바구니) / need(금액 부족) / ready(담을 수 있음) / on(담음) */
+function bananaState(){
+  if (state.mode !== "delivery") return "off";
+  if (bananaUsedToday()) return "used";
+  if (!state.cart.length) return "empty";
+  if (eventBase() < OPEN_EVENT.min) return "need";
+  return state.banana ? "on" : "ready";
+}
 function bananaPay(){ return (state.banana && eventReady()) ? OPEN_EVENT.price : 0; }
 /* 조건이 안 맞으면 이벤트 바나나를 자동으로 뺀다 (3만 원 아래로 줄었거나 포장으로 바꾼 경우) */
 function syncBanana(quiet){
@@ -579,7 +594,9 @@ function syncBanana(quiet){
     if (!quiet){
       toast(state.mode !== "delivery"
         ? "🍌 바나나 100원은 배달 주문에만 적용돼서 장바구니에서 뺐어요"
-        : "3만 원 아래로 줄어서 바나나 100원 이벤트가 풀렸어요");
+        : (bananaUsedToday()
+            ? "오늘 이미 사용한 이벤트예요 · 바나나 100원은 내일 다시 담을 수 있어요"
+            : "3만 원 아래로 줄어서 바나나 100원 이벤트가 풀렸어요"));
     }
     return true;
   }
@@ -601,6 +618,8 @@ function save(){
     localStorage.setItem(KEY, JSON.stringify({cart: state.cart, mode: state.mode, zone: state.zone, user: state.user, slots: state.slots, banana: !!state.banana}));
     if (state.couponDate) localStorage.setItem(COUPON_KEY, JSON.stringify({date: state.couponDate}));
     else localStorage.removeItem(COUPON_KEY);
+    if (state.bananaDate) localStorage.setItem(BANANA_KEY, JSON.stringify({date: state.bananaDate}));
+    else localStorage.removeItem(BANANA_KEY);
   } catch(e){}
 }
 function load(){
@@ -619,6 +638,8 @@ function load(){
     }
     var c = localStorage.getItem(COUPON_KEY);
     if (c) { var cd = JSON.parse(c); if (cd && cd.date) state.couponDate = cd.date; }
+    var bn = localStorage.getItem(BANANA_KEY);
+    if (bn) { var bd = JSON.parse(bn); if (bd && bd.date) state.bananaDate = bd.date; }
   } catch(e){}
 }
 function markCouponUsed(){ state.couponDate = todayStr(); save(); }
@@ -769,6 +790,41 @@ function renderMenu(){
   for (var k=0;k<CATS.length;k++) if (CATS[k].key === state.filter) cat = CATS[k];
   $("#menuTitle").textContent = state.q ? "‘" + state.q + "’ 검색 결과" : (cat ? cat.title : "오늘 입고 상품");
   $("#menuCount").textContent = list.length + "개 상품";
+}
+
+/* ── 오늘의 행사 (메뉴 목록 위 가로 카드) ─────────
+   행사(cats:deal) 품목을 사진·가격이 크게 보이는 카드로 먼저 보여 준다.
+   검색 중이거나 다른 카테고리를 골랐을 때는 메뉴 목록에 집중하도록 숨긴다. */
+function dealProducts(){
+  return PRODUCTS.filter(function(p){ return (p.cats || []).indexOf("deal") > -1; });
+}
+function dealCardHtml(p){
+  var q = qtyOf(p.id);
+  var price = p.opts
+    ? money(basePrice(p)) + '원<span class="from">부터</span>'
+    : money(priceOf(p, 0)) + '원';
+  var flag = (p.badges && p.badges[0]) ? p.badges[0][0] : "행사";
+  return '<article class="dcard" data-id="' + p.id + '">'
+    + '<div class="dimg">' + thumb(p)
+    +   '<span class="dflag">' + esc(flag) + '</span>'
+    +   (q ? '<span class="dcnt">' + q + '</span>' : '') + '</div>'
+    + '<div class="dt"><h3>' + esc(p.name) + '</h3>'
+    +   '<p>' + esc((p.origin ? p.origin + " · " : "") + p.unit) + '</p>'
+    +   '<div class="dprice">' + price + '</div></div>'
+    + '<div class="dact">' + rowAction(p) + '</div>'
+    + '</article>';
+}
+function renderDeals(){
+  var sec = $("#dealSec");
+  if (!sec) return;
+  if (state.q.trim() || state.filter !== "all"){ sec.hidden = true; sec.innerHTML = ""; return; }
+  var list = dealProducts().filter(function(p){ return !isSold(p); });
+  if (!list.length){ sec.hidden = true; sec.innerHTML = ""; return; }
+  var h = '<div class="dh"><h2>🔥 오늘의 행사</h2><span>' + list.length + '개 · 오늘만 이 가격</span></div>'
+        + '<div class="dlist" id="dealList">';
+  for (var i=0;i<list.length;i++) h += dealCardHtml(list[i]);
+  sec.innerHTML = h + '</div>';
+  sec.hidden = false;
 }
 
 /* ────────────────────────────────────────────────
@@ -978,33 +1034,77 @@ function couponCardHtml(){
   else                         h += '<span class="tk-chip need">15,000원</span>';
   return h + '</div></div>';
 }
+/* ── 이번 주문 혜택 조건 (장바구니·주문서 공용) ──
+   바나나 100원은 배달 전용, 포장 쿠폰은 포장 전용이라 한 주문에 함께 쓸 수 없다.
+   최소금액은 일반 상품 합계로 보고, 100원 이벤트 바나나는 여기에 넣지 않는다. */
+function benefitChip(text, cls){ return '<span class="bf-s ' + cls + '">' + text + '</span>'; }
+function benefitsCardHtml(){
+  var bst = bananaState(), cst = couponState();
+  var bTxt, bCls, bSub = "배달 전용 · 일반 상품 3만 원 이상 · 하루 1회 · 주문당 1송이";
+  if (bst === "used"){ bTxt = "오늘 사용 완료"; bCls = "used"; bSub += " · 내일 다시 쓸 수 있어요"; }
+  else if (bst === "off"){ bTxt = "배달 주문에만"; bCls = "off"; }
+  else if (bst === "need"){ bTxt = money(eventGap()) + "원 더"; bCls = "need"; bSub += " · " + money(eventGap()) + "원 남았어요"; }
+  else if (bst === "on"){ bTxt = "적용됨"; bCls = "on"; }
+  else if (bst === "ready"){ bTxt = "담을 수 있어요"; bCls = "ready"; }
+  else { bTxt = "담기면 확인"; bCls = "off"; }
+
+  var cSub = "포장 전용 · 1.5만 원 이상 · 하루 1회", cTxt, cCls;
+  if (cst === "used"){ cTxt = "오늘 사용 완료"; cCls = "used"; cSub += " · 내일 다시 쓸 수 있어요"; }
+  else if (cst === "need"){ cTxt = money(couponGap()) + "원 더"; cCls = "need"; cSub += " · " + money(couponGap()) + "원 남았어요"; }
+  else if (cst === "on"){ cTxt = "적용됨"; cCls = "on"; }
+  else if (cst === "empty"){ cTxt = "담기면 확인"; cCls = "off"; }
+  else { cTxt = "포장 주문에만"; cCls = "off"; }
+
+  return '<div class="bnft">'
+    + '<div class="bf-h"><b>🎁 이번 주문 혜택 조건</b><span>각각 하루 1회</span></div>'
+    + '<div class="bf-row"><span class="bf-ico">🍌</span>'
+    +   '<div class="bf-t"><b>바나나 1송이 100원</b><small>' + bSub + '</small></div>' + benefitChip(bTxt, bCls) + '</div>'
+    + '<div class="bf-row"><span class="bf-ico">🎟️</span>'
+    +   '<div class="bf-t"><b>포장 1,000원 할인 쿠폰</b><small>' + cSub + '</small></div>' + benefitChip(cTxt, cCls) + '</div>'
+    + '<p class="bf-note">· 🍌 배달 전용과 🎟️ 포장 전용은 <b>한 주문에 함께 쓸 수 없어요</b>.<br>'
+    + '· 최소 주문금액은 <b>일반 상품 합계</b>로 계산해요 — 100원 이벤트 바나나는 포함되지 않아요.</p>'
+    + '</div>';
+}
 /* ── 오픈 기념 이벤트 카드 (장바구니·주문서 공용) ── */
 function bananaEventHtml(){
   if (!state.cart.length) return "";
+  var bst = bananaState();
+  /* 오늘 이미 써서 다음 주문부터는 담을 수 없다 */
+  if (bst === "used"){
+    return '<div class="bncard used" id="banCard">'
+      + '<span class="bc-ico">🍌</span>'
+      + '<div class="bc-t"><b>오늘 바나나 100원 이벤트는 사용했어요</b>'
+      + '<small>하루 1회 · 내일 다시 100원에 담을 수 있어요 · 배달 3만 원 이상 · 주문당 1송이</small></div>'
+      + '<span class="bc-chip">오늘 사용 완료</span></div>';
+  }
   /* 포장(매장픽업) 주문 — 담을 수 없고 안내만 */
-  if (state.mode !== "delivery"){
+  if (bst === "off"){
     return '<div class="bncard off" id="banCard">'
       + '<div class="bc-t"><b>' + OPEN_EVENT.offNote + '</b>'
-      + '<small>오픈 기념 11/24~11/29 · 주문당 1송이 한정 · 배달로 바꾸면 100원에 담을 수 있어요</small></div>'
+      + '<small>배달 전용 · 주문당 1송이 · 하루 1회 한정 · 배달로 바꾸면 100원에 담을 수 있어요</small></div>'
       + '</div>';
   }
-  if (!eventReady()){
+  if (bst === "need"){
     return '<div class="bncard need" id="banCard">'
       + '<span class="bc-ico">🍌</span>'
       + '<div class="bc-t"><b>' + money(eventGap()) + '원만 더 담으면 바나나 1송이 100원에 추가할 수 있어요!</b>'
-      + '<small>오픈 기념 이벤트 11/24~11/29 · 배달 3만 원 이상 주문에 주문당 1송이 한정</small></div>'
+      + '<small>배달 전용 · 일반 상품 3만 원 이상 · 하루 1회 · 주문당 1송이 한정</small></div>'
       + '</div>';
   }
   var on = !!state.banana;
   return '<button type="button" class="bncard' + (on ? ' on' : '') + '" id="banCard" data-banana="toggle" role="checkbox" aria-checked="' + (on ? "true" : "false") + '">'
     + '<span class="bc-ico">🍌</span>'
     + '<div class="bc-t"><b>' + OPEN_EVENT.label + '</b>'
-    + '<small>' + (on ? "추가됐어요 · 결제 금액에 100원이 더해져요 (주문당 1송이 한정)" : "배달 3만 원 이상 · 주문당 1송이 한정 · 오픈 기념 11/24~11/29") + '</small></div>'
+    + '<small>' + (on ? "추가됐어요 · 결제 금액에 100원이 더해져요 (주문당 1송이 · 하루 1회)" : "배달 3만 원 이상 · 주문당 1송이 · 하루 1회 한정") + '</small></div>'
     + '<span class="bc-ck" aria-hidden="true">' + (on ? "✓" : "") + '</span></button>';
 }
 function toggleBanana(){
   if (state.mode !== "delivery"){
     toast(OPEN_EVENT.offNote);
+    return;
+  }
+  if (bananaUsedToday()){
+    toast("오늘은 이미 사용했어요 · 바나나 100원은 내일 다시 담을 수 있어요");
     return;
   }
   if (!eventReady()){
@@ -1054,6 +1154,7 @@ function renderCart(){
   h += '<button class="morebtn" id="moreBtn">+ 더 담으러 가기</button>';
   h += bananaEventHtml();
   h += couponCardHtml();
+  h += benefitsCardHtml();
   if (state.mode === "delivery" && remaining() > 0){
     var z = zoneInfo();
     h += '<div class="mincard"><b>' + z.short + ' 배달까지 ' + money(remaining()) + '원 남았어요</b>'
@@ -1381,6 +1482,7 @@ function goCheckout(){
 }
 function renderAll(){
   renderMode();
+  renderDeals();
   renderMenu();
   renderGradeGuide();
   renderClaimBadge();
@@ -1520,6 +1622,7 @@ function renderCheckout(){
   h += '<div class="band"></div>'
     + '<section class="csec"><h3><span class="sn">5</span>결제 금액</h3>'
     + '<div class="sumcard" style="margin:0">' + sumRowsHtml() + '</div>'
+    + benefitsCardHtml()
     + '<p class="simnote">🕒 받는 시간: <b>' + curSlot().label + '</b><br>' + (state.mode === "pickup"
         ? (pickupDiscount() > 0
             ? "포장 1,000원 할인 쿠폰이 적용됐어요. 오늘 하루 1번 사용할 수 있어요."
@@ -1610,6 +1713,7 @@ function pay(){
   btn.textContent = "주문 접수 중…";
 
   var usedCoupon = pickupDiscount() > 0;
+  var usedBanana = bananaPay() > 0;      /* 이 주문에 100원 바나나를 썼으면 오늘은 더 못 쓴다 */
   var slot = curSlot();
   setTimeout(function(){
     var now = new Date();
@@ -1650,6 +1754,7 @@ function pay(){
     saveRecent();
     decStock();
     if (usedCoupon) markCouponUsed();
+    if (usedBanana) markBananaUsed();
     showDone(ord);
   }, 700);
 }
@@ -1805,6 +1910,26 @@ function showDone(ord){
   });
 }
 
+/* 메뉴 목록 · 상단 행사 카드 공통 클릭 처리 */
+function menuTap(e){
+  var addB = e.target.closest("[data-add]");
+  if (addB){
+    var p = byId(addB.getAttribute("data-add"));
+    if (!p) return;
+    if (p.opts) openOpt(p.id); else add(p.id, 0, 1);
+    return;
+  }
+  var inc = e.target.closest("[data-inc]");
+  if (inc){ bump(inc.getAttribute("data-inc"), 1); return; }
+  var dec = e.target.closest("[data-dec]");
+  if (dec){ bump(dec.getAttribute("data-dec"), -1); return; }
+  var row = e.target.closest(".mrow, .dcard");
+  if (row){
+    var rp = byId(row.getAttribute("data-id"));
+    if (rp && rp.opts) openOpt(rp.id);
+  }
+}
+
 /* ────────────────────────────────────────────────
    15. 이벤트
    ──────────────────────────────────────────────── */
@@ -1850,7 +1975,10 @@ function bind(){
     var b = e.target.closest("[data-cat]");
     if (!b) return;
     state.filter = b.getAttribute("data-cat");
-    renderCats(); renderMenu();
+    renderCats(); renderDeals(); renderMenu();
+    /* 고른 탭이 화면 밖에 있으면 가운데로 당겨 온다 */
+    var nb = $("#catIn [data-cat='" + state.filter + "']");
+    if (nb && nb.scrollIntoView){ try { nb.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); } catch(err){} }
   });
 
   /* 검색 */
@@ -1858,32 +1986,16 @@ function bind(){
   q.addEventListener("input", function(){
     $("#qClear").hidden = !q.value;
     clearTimeout(t);
-    t = setTimeout(function(){ state.q = q.value; renderMenu(); }, 110);
+    t = setTimeout(function(){ state.q = q.value; renderDeals(); renderMenu(); }, 110);
   });
   q.addEventListener("keydown", function(e){ if (e.key === "Enter") q.blur(); });
   $("#qClear").addEventListener("click", function(){
-    q.value = ""; state.q = ""; $("#qClear").hidden = true; renderMenu(); q.focus();
+    q.value = ""; state.q = ""; $("#qClear").hidden = true; renderDeals(); renderMenu(); q.focus();
   });
 
-  /* 메뉴 담기 · 수량 · 옵션 열기 */
-  $("#menuList").addEventListener("click", function(e){
-    var addB = e.target.closest("[data-add]");
-    if (addB){
-      var p = byId(addB.getAttribute("data-add"));
-      if (!p) return;
-      if (p.opts) openOpt(p.id); else add(p.id, 0, 1);
-      return;
-    }
-    var inc = e.target.closest("[data-inc]");
-    if (inc){ bump(inc.getAttribute("data-inc"), 1); return; }
-    var dec = e.target.closest("[data-dec]");
-    if (dec){ bump(dec.getAttribute("data-dec"), -1); return; }
-    var row = e.target.closest(".mrow");
-    if (row){
-      var rp = byId(row.getAttribute("data-id"));
-      if (rp && rp.opts) openOpt(rp.id);
-    }
-  });
+  /* 메뉴 담기 · 수량 · 옵션 열기 — 목록과 상단 행사 카드가 같은 동작 */
+  $("#menuList").addEventListener("click", menuTap);
+  if ($("#dealSec")) $("#dealSec").addEventListener("click", menuTap);
 
   /* 하단 장바구니 바 */
   $("#cartbar").addEventListener("click", openCart);
@@ -2043,6 +2155,7 @@ function init(){
   applyRecent();
   renderCats();
   renderMode();
+  renderDeals();
   renderMenu();
   renderGradeGuide();
   renderClaimBadge();

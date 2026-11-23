@@ -2,44 +2,50 @@
    사진은 assets/img/*.webp 파일. HTML 안에 base64 로 넣지 않습니다. */
 /* 상품 사진 — 단일 HTML 안 base64(471KB)였던 35장을 파일로 분리 (lazy loading 실제 동작) */
 var IMG = {
-  strawberry: "assets/img/strawberry.webp?v=20261124e",
-  tangerine: "assets/img/tangerine.webp?v=20261124e",
-  goldenhwang: "assets/img/goldenhwang.webp?v=20261124e",
-  apple: "assets/img/apple.webp?v=20261124e",
-  banana: "assets/img/banana.webp?v=20261124e",
-  cabbage: "assets/img/cabbage.webp?v=20261124e",
-  fig: "assets/img/fig.webp?v=20261124e",
-  persimmon: "assets/img/persimmon.webp?v=20261124e",
-  daebong: "assets/img/daebong.webp?v=20261124e",
-  kiwi: "assets/img/kiwi.webp?v=20261124e",
-  mango: "assets/img/mango.webp?v=20261124e",
-  shine: "assets/img/shine.webp?v=20261124e",
-  pineapple: "assets/img/pineapple.webp?v=20261124e",
-  jujube: "assets/img/jujube.webp?v=20261124e",
-  chestnut: "assets/img/chestnut.webp?v=20261124e",
-  blueberry: "assets/img/blueberry.webp?v=20261124e",
-  campbell: "assets/img/campbell.webp?v=20261124e",
-  pomegranate: "assets/img/pomegranate.webp?v=20261124e",
-  orange: "assets/img/orange.webp?v=20261124e",
-  tomato: "assets/img/tomato.webp?v=20261124e",
-  cheonggat: "assets/img/cheonggat.webp?v=20261124e",
-  altari: "assets/img/altari.webp?v=20261124e",
-  daepa: "assets/img/daepa.webp?v=20261124e",
-  aehobak: "assets/img/aehobak.webp?v=20261124e",
-  buchu: "assets/img/buchu.webp?v=20261124e",
-  cheongyang: "assets/img/cheongyang.webp?v=20261124e",
-  kkwari: "assets/img/kkwari.webp?v=20261124e",
-  potato: "assets/img/potato.webp?v=20261124e",
-  carrot: "assets/img/carrot.webp?v=20261124e",
-  mu: "assets/img/mu.webp?v=20261124e",
-  onion: "assets/img/onion.webp?v=20261124e",
-  lettuce: "assets/img/lettuce.webp?v=20261124e",
-  sangchu: "assets/img/sangchu.webp?v=20261124e",
-  perilla: "assets/img/perilla.webp?v=20261124e",
-  egg: "assets/img/egg.webp?v=20261124e"
+  strawberry: "assets/img/strawberry.webp?v=20261124f",
+  tangerine: "assets/img/tangerine.webp?v=20261124f",
+  goldenhwang: "assets/img/goldenhwang.webp?v=20261124f",
+  apple: "assets/img/apple.webp?v=20261124f",
+  banana: "assets/img/banana.webp?v=20261124f",
+  cabbage: "assets/img/cabbage.webp?v=20261124f",
+  fig: "assets/img/fig.webp?v=20261124f",
+  persimmon: "assets/img/persimmon.webp?v=20261124f",
+  daebong: "assets/img/daebong.webp?v=20261124f",
+  kiwi: "assets/img/kiwi.webp?v=20261124f",
+  mango: "assets/img/mango.webp?v=20261124f",
+  shine: "assets/img/shine.webp?v=20261124f",
+  pineapple: "assets/img/pineapple.webp?v=20261124f",
+  jujube: "assets/img/jujube.webp?v=20261124f",
+  chestnut: "assets/img/chestnut.webp?v=20261124f",
+  blueberry: "assets/img/blueberry.webp?v=20261124f",
+  campbell: "assets/img/campbell.webp?v=20261124f",
+  pomegranate: "assets/img/pomegranate.webp?v=20261124f",
+  orange: "assets/img/orange.webp?v=20261124f",
+  tomato: "assets/img/tomato.webp?v=20261124f",
+  cheonggat: "assets/img/cheonggat.webp?v=20261124f",
+  altari: "assets/img/altari.webp?v=20261124f",
+  daepa: "assets/img/daepa.webp?v=20261124f",
+  aehobak: "assets/img/aehobak.webp?v=20261124f",
+  buchu: "assets/img/buchu.webp?v=20261124f",
+  cheongyang: "assets/img/cheongyang.webp?v=20261124f",
+  kkwari: "assets/img/kkwari.webp?v=20261124f",
+  potato: "assets/img/potato.webp?v=20261124f",
+  carrot: "assets/img/carrot.webp?v=20261124f",
+  mu: "assets/img/mu.webp?v=20261124f",
+  onion: "assets/img/onion.webp?v=20261124f",
+  lettuce: "assets/img/lettuce.webp?v=20261124f",
+  sangchu: "assets/img/sangchu.webp?v=20261124f",
+  perilla: "assets/img/perilla.webp?v=20261124f",
+  egg: "assets/img/egg.webp?v=20261124f"
 };
 
 function P(o){ return o; }
+
+/* ── 남은 수량(stock) 표기 기준 ──
+   stock 은 '사장님이 직접 잡는 한정 수량'이다. 5 이하일 때만 손님 화면에 `오늘 N팩 남음` 배지가 뜬다.
+   매일 들여오는 상시 품목(딸기·귤·사과·블루베리 등)은 여유 있는 수량으로 두어
+   실제로 임박하지 않았는데 `2팩 남음` 같은 경고가 뜨지 않게 한다(2026-11-23 사장님 지적).
+   품절·임박을 알리고 싶으면 사장님 페이지에서 그 품목의 남은 수량을 직접 낮추면 된다. */
 
 var PRODUCTS = [
   /* ── 오늘특가 ── */
@@ -59,12 +65,12 @@ var PRODUCTS = [
      badges:[["행사","hot"]], desc:"1kg 행사 물량 · 알밤", price:3000, tags:["밤"]}),
 
   P({id:"blueberry", name:"블루베리", unit:"3팩", cats:["deal"], img:"blueberry", grade:"home",
-     badges:[["행사","hot"]], origin:"칠레산", desc:"3팩 묶음 특가", price:9900, stock:4, tags:["베리"]}),
+     badges:[["행사","hot"]], origin:"칠레산", desc:"3팩 묶음 특가", price:9900, stock:30, tags:["베리"]}),
 
   /* ── 과일 ── */
   P({id:"strawberry", name:"딸기", unit:"1팩", cats:["fruit"], img:"strawberry", grade:"A",
      ogrades:["home","A","A"],
-     badges:[["오늘입고","fresh"]], origin:"국내산", desc:"향·당도 좋은 생딸기", stock:5,
+     badges:[["오늘입고","fresh"]], origin:"국내산", desc:"향·당도 좋은 생딸기", stock:60,
      tip:"냉장 2시간 뒤 드시면 더 달아요",
      opts:[{label:"4x5 · 1팩", sub:"가장 많이 담기는 사이즈", price:7900},
            {label:"3x5 · 1팩", sub:"알이 큰 사이즈", price:9900},
@@ -89,7 +95,7 @@ var PRODUCTS = [
 
   P({id:"tangerine", name:"제주 귤", unit:"5kg", cats:["fruit"], img:"tangerine", grade:"home",
      ogrades:["A","A","B","B"],
-     badges:[], origin:"제주산", desc:"사이즈·품종 골라 담기", stock:3,
+     badges:[], origin:"제주산", desc:"사이즈·품종 골라 담기", stock:40,
      tip:"한두 알 껍질을 벗겨 두었다 드세요",
      opts:[{label:"다우렁 M · 5kg", price:20000},
            {label:"유라조생 M · 5kg", price:30000},
@@ -123,7 +129,7 @@ var PRODUCTS = [
 
   P({id:"apple", name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"home",
      ogrades:["home","A"],
-     badges:[], origin:"안동", desc:"아삭한 안동 부사", stock:4, tip:"흐르는 물에 씻어 껍질째 드세요",
+     badges:[], origin:"안동", desc:"아삭한 안동 부사", stock:40, tip:"흐르는 물에 씻어 껍질째 드세요",
      opts:[{label:"15개", sub:"가정용", price:9900},
            {label:"10kg", sub:"한 상자", price:25000}],
      tags:["사과 부사"]}),
@@ -147,7 +153,7 @@ var PRODUCTS = [
      tip:"김장 배추는 4일 전 예약하세요"}),
   P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", badges:[], origin:"국내산", desc:"5단 묶음", price:9900, tags:["무 총각김치"]}),
   P({id:"jjokpa", name:"흙쪽파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"흙 묻은 쪽파 1단", price:3000, tags:["쪽파 파 김장"]}),
-  P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2000, stock:10, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
+  P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2000, stock:20, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
   P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1000, tags:["호박"]}),
   P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["부추"]}),
   P({id:"cheongyang", name:"청양고추", unit:"1팩", cats:["veg"], img:"cheongyang", badges:[], origin:"국내산", desc:"매콤한 청양고추", price:2000, tags:["고추"]}),
