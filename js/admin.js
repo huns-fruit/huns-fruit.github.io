@@ -862,12 +862,13 @@ function cancelOrder(no, reason){
   found.cancelAt = Date.now();
   found.statusAt = Date.now();
   writeOrders(list);
+  markAck(no);                 /* 새 주문 알림이 울리던 중이면 취소와 함께 멈춘다 */
   pushOrderStatus(no, "canceled").then(function(ok){
     if (!ok) toast("⚠️ 공용 DB에 취소를 못 올렸어요 · 손님 화면에 안 보이면 다시 취소해 주세요");
   });
   closeCancel();
   renderOrders();
-  renderBanner(); refreshAlarmUI(); ensureRinging();
+  alarmSync();
   toast("주문을 취소했어요 · 손님 화면에 ‘❌ 주문 취소’로 보여요");
 }
 function openCancel(no){
