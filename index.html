@@ -469,6 +469,7 @@ a{color:inherit}
 .gchip.gh{background:#EDF6EF;color:#26714B}
 .gchip.gb{background:#FFF3E2;color:#8A5400}
 .gchip.gc{background:#FDECEF;color:#A43148}
+.gchip.gn{background:#EEF1F4;color:#4A5568}
 .gchip.sm{font-size:11px;padding:1px 6px;margin-left:5px}
 .gguide{margin:14px 16px 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .gguide .gg-h{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
@@ -725,7 +726,7 @@ var NTFY_URL = "https://ntfy.sh/hoonie-dangu-order-914288";
 
 var ZONES = {
   pickup: { key:"pickup", name:"포장(매장픽업)", short:"포장", icon:"🏪", min:0,
-    hint:"단구로 398, 상가동2동 1층 101호 · 최소주문 없음", eta:"준비되면 바로 수령 (보통 30분 이내)" },
+    hint:"단구로 398, 상가동2동 1층 101호 · 최소주문 없음 · 포장 09:00~20:00", eta:"포장 가능 시간 09:00~20:00 (준비되면 바로 수령)" },
   city:   { key:"city", name:"원주 시내권 배달", short:"원주 시내권", icon:"🛵", min:30000,
     hint:"30,000원 이상 무료배달 · 낮 12시 마감", eta:"낮 12시 이전 주문 → 당일 또는 익일 배달" },
   outer:  { key:"outer", name:"기업도시·태장·우산동 배달", short:"기업·태장·우산동", icon:"🚛", min:50000,
@@ -942,9 +943,13 @@ var GRADES = {
   B:    {key:"B",    name:"B급",   tag:"알뜰 못난이",     cls:"gb",
          why:"크기·모양이 조금씩 달라도 맛은 그대로예요"},
   C:    {key:"C",    name:"C급",   tag:"당일소진 초특가", cls:"gc",
-         why:"바로 드실 분께 추천 · 숙성·겉흠집 있어 특가"}
+         why:"바로 드실 분께 추천 · 숙성·겉흠집 있어 특가"},
+  /* 등급을 매기지 않는 일반 상품(바나나 등) — 4단계 등급표에는 넣지 않는다 */
+  normal:{key:"normal", name:"일반", tag:"신선 행사", cls:"gn",
+         why:"등급 구분 없이 매일 들여오는 신선 상품"}
 };
 var GRADE_ORDER = ["A", "home", "B", "C"];
+var GRADE_ALL = ["normal", "A", "home", "B", "C"];   // 사장님 페이지 등급 선택지
 
 var IMG = {
   strawberry: "data:image/webp;base64,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",
@@ -989,9 +994,9 @@ function P(o){ return o; }
 var PRODUCTS = [
   /* ── 오늘특가 ── */
 
-  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"C",
-     badges:[["행사","hot"]], origin:"필리핀산", desc:"오늘만 이 가격 · 1인 1송이", price:1000, stock:8,
-     tip:"노랗게 익으면 냉장 보관하세요", tags:["행사 바나나"]}),
+  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
+     badges:[["행사","hot"]], origin:"필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
+     tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
 
   P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
      badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:9900, tags:["파인애플"],
@@ -1154,11 +1159,13 @@ var state = {
   catalog: {},       // 사장님 페이지가 고친 상품 정보 {pid:{price,opts,soldout,stock,comment}}
   orders: []         // 이 기기에 접수된 주문 (최신순)
 };
+/* ── 매장 픽업(포장) 영업시간 = 09:00~20:00 ──
+   이 시간 안에서만 '오늘 픽업'을 받고, 20:00~다음날 09:00 사이에는
+   '내일 오전 9시 이후 픽업'으로만 예약을 받는다. */
+var PICKUP_OPEN_H = 9;
+var PICKUP_CLOSE_H = 20;
+var PICKUP_HOURS = "09:00~20:00";
 var SLOT_DEF = {
-  pickup: [
-    {key:"soon30",   label:"30분 뒤 바로 픽업", sub:"지금 바로 준비해 둘게요", eta:"30분 뒤 픽업"},
-    {key:"today_pm", label:"오늘 오후 픽업",     sub:"오후 4시~7시에 가져가기", eta:"오늘 오후 픽업"}
-  ],
   delivery_city: [
     {key:"today_pm",    label:"오늘 오후 배달", sub:"낮 12시 이전 주문", eta:"오늘 오후 배달"},
     {key:"tomorrow_am", label:"내일 오전 배달", sub:"낮 12시 넘었어도 접수", eta:"내일 오전 배달"}
@@ -1172,7 +1179,12 @@ var SLOT_DEF = {
 var FILL_IDS = ["perilla", "aehobak", "daepa", "cheongyang"];
 /* 원터치 요청사항 칩 */
 var REQ_DELIVERY = ["문 앞에 두고 문자 주세요", "벨 누르지 마세요", "도착 전 전화 주세요", "아이스박스/그늘 보관"];
-var REQ_PICKUP   = ["30분 뒤에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"];
+/* 포장 요청사항 칩 — 영업시간 밖이면 '30분 뒤' 대신 '내일 오전'으로 */
+function reqPickupChips(){
+  return pickupOpenNow()
+    ? ["30분 뒤에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]
+    : ["내일 오전에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"];
+}
 var toastTimer = null;
 
 function $(sel, root){ return (root || document).querySelector(sel); }
@@ -1242,23 +1254,68 @@ function kstDate(){
   return new Date(d.getTime() + d.getTimezoneOffset() * 60000 + 9 * 3600000);
 }
 function deliveryClosed(){ return kstDate().getHours() >= 12; }
-var CLOSED_MSG = "오늘 당일 배달은 낮 12시에 마감되었어요. 지금 주문하시면 내일 오전 배송으로 접수됩니다. (매장 포장은 지금도 가능해요!)";
+/* 한국 시간 기준 지금이 몇 분인지 (00:00 = 0) */
+function kstMin(){ var d = kstDate(); return d.getHours()*60 + d.getMinutes(); }
+function pad2(n){ return String(n).padStart(2,"0"); }
+function pickupOpenNow(){ var m = kstMin(); return m >= PICKUP_OPEN_H*60 && m < PICKUP_CLOSE_H*60; }
+/* 지금 시각에 고를 수 있는 포장(매장픽업) 시간 — 20:00을 넘기는 시간대는 내놓지 않는다 */
+function pickupSlots(){
+  var m = kstMin(), closeM = PICKUP_CLOSE_H*60, list = [];
+  if (!pickupOpenNow()){
+    return [{key:"tomorrow_am", label:"내일 오전 9시 이후 픽업",
+             sub:"포장 가능 시간 " + PICKUP_HOURS, eta:"내일 오전 9시 이후 픽업"}];
+  }
+  if (m + 30 <= closeM){
+    list.push({key:"soon30", label:"30분 뒤 바로 픽업",
+               sub:"지금 바로 준비해 둘게요 · " + PICKUP_HOURS, eta:"30분 뒤 픽업"});
+  } else {
+    list.push({key:"today_close", label:"오늘 " + pad2(PICKUP_CLOSE_H) + ":00까지 픽업",
+               sub:"매장 마감 전에 가져가기", eta:"오늘 " + pad2(PICKUP_CLOSE_H) + ":00까지 픽업"});
+  }
+  /* 오후 픽업(4시~7시)은 7시가 되기 전까지만 고를 수 있다 */
+  if (m < 19*60){
+    list.push({key:"today_pm", label:"오늘 오후 픽업",
+               sub:(m < 16*60 ? "오후 4시~7시에 가져가기" : "지금부터 오후 7시 사이에 가져가기"),
+               eta:"오늘 오후 픽업"});
+  }
+  return list;
+}
+function closedMsg(){
+  return "오늘 당일 배달은 낮 12시에 마감되었어요. 지금 주문하시면 내일 오전 배송으로 접수됩니다. ("
+    + (pickupOpenNow() ? "매장 포장은 " + PICKUP_HOURS + " 안에서 지금도 가능해요"
+                       : "매장 포장은 영업시간 " + PICKUP_HOURS + "에 가능해요") + ")";
+}
 function deliveryClosedBannerHtml(){
   return '<div class="banner closed" id="closedBanner">'
     + '<b><span class="bn-ico">⏰</span>오늘 배달은 낮 12시에 마감됐어요</b>'
-    + '<small>' + CLOSED_MSG + '</small>'
+    + '<small>' + closedMsg() + '</small>'
     + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
 }
 function deliveryClosedNote(pad){
   return '<div class="banner closed" style="margin:' + (pad ? '12px 0 0' : '10px 16px 0') + '">'
     + '<b><span class="bn-ico">⏰</span>낮 12시 마감 · 내일 오전 배송으로 접수돼요</b>'
-    + '<small>' + CLOSED_MSG + '</small>'
+    + '<small>' + closedMsg() + '</small>'
     + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
+}
+/* 포장(매장픽업) 영업시간 09:00~20:00 밖일 때의 안내 */
+function pickupClosedText(){
+  return "포장(매장픽업)은 영업시간 " + PICKUP_HOURS + "에 가능해요. 지금 주문하시면 내일 오전 9시 이후에 가져가실 수 있어요.";
+}
+function pickupClosedBannerHtml(){
+  return '<div class="banner closed" id="pickupClosedBanner">'
+    + '<b><span class="bn-ico">⏰</span>지금은 영업시간이 아니에요 · ' + PICKUP_HOURS + '</b>'
+    + '<small>' + pickupClosedText() + '</small></div>';
+}
+function pickupClosedNote(pad){
+  return '<div class="banner closed" style="margin:' + (pad ? '12px 0 0' : '10px 16px 0') + '">'
+    + '<b><span class="bn-ico">⏰</span>지금은 영업시간이 아니에요 · ' + PICKUP_HOURS + '</b>'
+    + '<small>' + pickupClosedText() + '</small></div>';
 }
 
 /* ── 받는 시간 선택 ── */
 function ctxKey(){ return state.mode === "pickup" ? "pickup" : "delivery_" + state.zone; }
 function slotList(){
+  if (ctxKey() === "pickup") return pickupSlots();
   var list = SLOT_DEF[ctxKey()] || SLOT_DEF.delivery_city;
   /* 낮 12시가 지나면 오늘 오후 배달은 받지 않고 내일 오전 배송으로 접수한다 */
   if (ctxKey() === "delivery_city" && deliveryClosed()){
@@ -1294,7 +1351,7 @@ function curSlot(){
 function slotBoxHtml(inBanner){
   var list = slotList(), cur = curSlot(), h = "";
   h += '<div class="slotbox' + (inBanner ? ' inbanner' : '') + '">'
-    +  '<div class="ct">🕞 받는 시간 <em>' + (state.mode === "pickup" ? "매장에서 바로" : "배달 일정") + '</em></div>'
+    +  '<div class="ct">🕞 받는 시간 <em>' + (state.mode === "pickup" ? "매장 픽업 · " + PICKUP_HOURS : "배달 일정") + '</em></div>'
     +  '<div class="slots">';
   for (var i=0;i<list.length;i++){
     var s = list[i];
@@ -1564,7 +1621,7 @@ function renderMode(){
     var cs = couponState(), ico, title, sub;
     if (cs === "used"){
       ico = "🗓️"; title = "오늘 쿠폰 사용 완료";
-      sub = "내일 다시 1,000원 할인 쿠폰을 쓸 수 있어요 · 포장은 최소주문 없이 바로";
+      sub = "내일 다시 1,000원 할인 쿠폰을 쓸 수 있어요 · 포장은 최소주문 없이 · " + PICKUP_HOURS;
     } else if (cs === "need"){
       ico = "🎟️"; title = money(couponGap()) + "원 더 담으면 포장 1,000원 쿠폰 사용 가능";
       sub = "15,000원 이상 포장 주문 · 오늘 하루 1회";
@@ -1575,7 +1632,8 @@ function renderMode(){
       ico = "🎟️"; title = "포장 1,000원 할인 쿠폰";
       sub = "15,000원 이상 포장 주문에 1,000원 · 오늘 하루 1회";
     }
-    el.innerHTML = '<div class="banner pick' + (cs === "used" ? ' used' : '') + '">'
+    el.innerHTML = (pickupOpenNow() ? '' : pickupClosedBannerHtml())
+      + '<div class="banner pick' + (cs === "used" ? ' used' : '') + '">'
       + '<b><span class="bn-ico">' + ico + '</span>' + title + '</b>'
       + '<small>' + sub + '</small>'
       + slotBoxHtml(true)
@@ -1859,7 +1917,7 @@ function recentCardHtml(){
 }
 /* 원터치 요청사항 칩 */
 function reqChipsHtml(){
-  var list = state.mode === "pickup" ? REQ_PICKUP : REQ_DELIVERY, h = '<div class="reqchips">';
+  var list = state.mode === "pickup" ? reqPickupChips() : REQ_DELIVERY, h = '<div class="reqchips">';
   for (var i=0;i<list.length;i++){
     var t = list[i], on = state.form.memo.indexOf(t) > -1;
     h += '<button class="' + (on ? 'on' : '') + '" data-req="' + esc(t) + '">' + esc(t) + '</button>';
@@ -1947,7 +2005,7 @@ function renderCart(){
   }
   var h = modeSegHtml();
   h += '<p class="seghint">' + (state.mode === "pickup"
-      ? "🏪 단구로 398 상가동 101호에서 바로 받아 가세요 · 최소주문 없음"
+      ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음 · 포장 " + PICKUP_HOURS
       : (state.zone === "city" ? "🛵 원주 시내권 · 30,000원 이상 무료배달" : "🚛 기업·태장·우산동 · 50,000원 이상 무료배달")) + '</p>';
   if (state.mode === "delivery"){
     h += zoneChipsHtml();
@@ -2110,8 +2168,8 @@ var POLICIES = {
   shipping: {
     title: "배송 및 교환·환불 정책",
     body: '<p class="polmeta">시행일 2026년 11월 22일 · 훈이네과일야채 단구점</p>'
-      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>최소주문 없음 · 준비되면 바로 수령(보통 30분 이내) 또는 오늘 오후 픽업</li><li>15,000원 이상 포장 주문에는 1,000원 할인 쿠폰을 하루 1회 쓸 수 있습니다.</li></ul>'
-      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다. 매장 포장은 그날 바로 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
+      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>최소주문 없음 · 포장 가능 시간 <b>09:00~20:00</b> · 그 안에서 준비되면 바로 수령(보통 30분 이내) 또는 오늘 오후 픽업</li><li>15,000원 이상 포장 주문에는 1,000원 할인 쿠폰을 하루 1회 쓸 수 있습니다.</li></ul>'
+      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
       + '<h4>3. 신선식품 교환·환불</h4><p>과일·채소는 신선식품이라 받으신 날 상태를 확인해 주세요. 아래 경우에는 <b>사진 접수</b>로 알려 주시면 확인 후 <b>교환 또는 부분환불</b>로 보상해 드립니다.</p><ul><li>받은 날 상한·무른·곰팡이·파손 등 이상이 있는 경우</li><li>주문한 상품과 다르거나 수량이 모자란 경우</li><li>표시된 등급·규격과 현저히 다른 경우</li></ul>'
       + '<h4>4. 접수와 처리 절차</h4><ul><li>화면의 <b>📷 받은 상품 이상하면 사진 접수</b>를 눌러 사진(최대 3장)·품목·사유·연락처를 보내 주세요.</li><li>사장님이 사진을 확인한 뒤 연락드리고, 교환·부분환불·다음 주문 보상 중에서 알맞은 방법으로 처리합니다.</li><li>급하시면 고객센터 010-9142-1531로 전화 주세요. 접수번호(CL…)를 알려 주시면 바로 확인합니다.</li></ul>'
       + '<h4>5. 교환·환불이 어려운 경우</h4><ul><li>수령한 다음 날 이후에 알려 주신 경우(다만 보관 중 이상이 생긴 것이 확인되면 상담해 드립니다)</li><li>이미 드셨거나 조리하신 경우, 손질·보관을 잘못하신 경우</li><li>단순 변심으로 받으신 날 이후에 요청하신 경우</li></ul>'
@@ -2379,7 +2437,9 @@ function renderCheckout(){
       + '<input id="ckAddr" value="' + esc(f.addr) + '" placeholder="예: 단구동 ○○아파트 101동 1001호" autocomplete="street-address">'
       + '<span class="err">배달 주소를 입력해 주세요</span></div>';
   } else {
-    h += '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel + ' · 준비되면 바로 가져가실 수 있어요.</div>';
+    h += (pickupOpenNow() ? '' : pickupClosedNote(true))
+      + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
+      + (pickupOpenNow() ? ' · 준비되면 바로 가져가실 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.') + '</div>';
   }
   h += slotBoxHtml();
   h += '<div class="field" style="margin-top:14px"><label for="ckMemo">요청사항 (선택)</label>'
@@ -2499,7 +2559,7 @@ function pay(){
   }
 
   if (state.mode === "delivery" && remaining() > 0){
-    toast(money(remaining()) + "원 더 담으면 배달돼요 · 포장은 바로 가능!");
+    toast(money(remaining()) + "원 더 담으면 배달돼요 · 포장은 " + PICKUP_HOURS + "에 가능!");
     return;
   }
   if (!f.agree){ toast("주문 내용 확인에 동의해 주세요"); $("#agreeBox").classList.add("bad"); return; }
@@ -2637,8 +2697,8 @@ function showDone(ord){
   var guide = "";
   if (o.mode === "pickup"){
     guide = (st === "ready" || st === "done")
-      ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531"
-      : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531";
+      ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00"
+      : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00";
     if (o.disc > 0) guide += "<br>1,000원 포장 할인 쿠폰은 오늘 하루 1번 사용할 수 있어요.";
   } else if (o.zone === "city"){
     guide = "🛵 <b>낮 12시 이전 주문은 당일 또는 익일 배달</b>이에요.<br>배달 전에 기사님이 " + esc(o.phone) + "로 연락드려요.";
@@ -2707,7 +2767,9 @@ function bind(){
     if (mb){
       var mbDropped = setMode(mb.getAttribute("data-mode"), true);
       toast(state.mode === "pickup"
-        ? (mbDropped ? "포장으로 바꿨어요 · 바나나 100원은 배달 전용이라 뺐어요" : "포장 주문으로 바꿨어요 · 지금 바로 준비해 드려요")
+        ? (mbDropped ? "포장으로 바꿨어요 · 바나나 100원은 배달 전용이라 뺐어요"
+                     : (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + PICKUP_HOURS + " 안에서 준비해 드려요"
+                                        : "포장 주문으로 바꿨어요 · 지금은 영업시간이 아니라 내일 오전 9시 이후 픽업으로 예약돼요"))
         : "배달 주문으로 바꿨어요");
       return;
     }
@@ -2951,14 +3013,15 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow();
   setInterval(function(){
-    var c = deliveryClosed();
-    if (c === wasClosed) return;
-    wasClosed = c;
+    var c = deliveryClosed(), po = pickupOpenNow();
+    if (c === wasClosed && po === wasPickupOpen) return;
+    wasClosed = c; wasPickupOpen = po;
     renderAll();
     if (state.view === "checkout") renderCheckout();
-    if (c && state.mode === "delivery") toast("낮 12시가 지나 오늘 배달이 마감됐어요 · 포장은 지금도 가능해요");
+    if (c && state.mode === "delivery") toast("낮 12시가 지나 오늘 배달이 마감됐어요 · 포장은 " + (pickupOpenNow() ? PICKUP_HOURS + " 안에서 가능해요" : "내일 09:00부터 가능해요"));
+    if (!po && state.mode === "pickup") toast("지금은 영업시간(" + PICKUP_HOURS + ")이 아니에요 · 내일 오전 9시 이후 픽업으로 바뀌었어요");
   }, 30000);
 }
 

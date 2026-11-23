@@ -40,6 +40,8 @@ input{font:inherit;color:inherit}
 .topr{margin-left:auto;display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .open{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 10px;border-radius:999px;background:var(--mint-l);color:var(--mint-d);font-size:12px;font-weight:800}
 .open::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mint);display:block}
+.open.off{background:#F1F1F1;color:#8F8F8F}
+.open.off::before{background:#BDBDBD}
 .shoplink{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;font-weight:800;color:var(--ink2);text-decoration:none;background:#fff}
 .tabs{display:flex;gap:4px;padding:0 12px 10px}
 .tabs button{flex:1 1 0;min-width:0;height:46px;border-radius:10px;background:var(--bg);font-size:13.5px;font-weight:800;color:var(--ink3);letter-spacing:-.4px;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
@@ -173,6 +175,7 @@ input{font:inherit;color:inherit}
 .gchip.gh{background:#EDF6EF;color:#26714B}
 .gchip.gb{background:#FFF3E2;color:#8A5400}
 .gchip.gc{background:#FDECEF;color:#A43148}
+.gchip.gn{background:#EEF1F4;color:#4A5568}
 .gfield{padding:0 6px}
 .pfield select{border:0;outline:none;background:transparent;font-size:12.5px;font-weight:800;letter-spacing:-.2px;padding:0 2px;max-width:158px}
 
@@ -900,9 +903,9 @@ function P(o){ return o; }
 var PRODUCTS = [
   /* ── 오늘특가 ── */
 
-  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"C",
-     badges:[["행사","hot"]], origin:"필리핀산", desc:"오늘만 이 가격 · 1인 1송이", price:1000, stock:8,
-     tip:"노랗게 익으면 냉장 보관하세요", tags:["행사 바나나"]}),
+  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
+     badges:[["행사","hot"]], origin:"필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
+     tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
 
   P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
      badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:9900, tags:["파인애플"],
@@ -1147,9 +1150,11 @@ var GRADES = {
   A:    {name:"A급",   tag:"품질보증",       cls:"ga"},
   home: {name:"가정용", tag:"실속 가정용",     cls:"gh"},
   B:    {name:"B급",   tag:"알뜰 못난이",     cls:"gb"},
-  C:    {name:"C급",   tag:"당일소진 초특가", cls:"gc"}
+  C:    {name:"C급",   tag:"당일소진 초특가", cls:"gc"},
+  normal:{name:"일반", tag:"신선 행사",       cls:"gn"}   /* 등급 없는 일반 상품(바나나 등) */
 };
 var GRADE_ORDER = ["A", "home", "B", "C"];
+var GRADE_ALL = ["normal", "A", "home", "B", "C"];   // 등급 선택지 (일반 포함)
 function adminGrade(p){
   var o = ov(p.id).grade;
   return (o && GRADES[o]) ? o : (p.grade || "");
@@ -1162,8 +1167,8 @@ function gradeChipHtml(p){
 }
 function gradeOpts(cur){
   var h = "";
-  for (var i=0;i<GRADE_ORDER.length;i++){
-    var k = GRADE_ORDER[i], g = GRADES[k];
+  for (var i=0;i<GRADE_ALL.length;i++){
+    var k = GRADE_ALL[i], g = GRADES[k];
     h += '<option value="' + k + '"' + (k === cur ? ' selected' : '') + '>' + g.name + ' · ' + g.tag + '</option>';
   }
   return h;
@@ -1175,6 +1180,14 @@ function tick(){
   var days = ["일","월","화","수","목","금","토"];
   $("#today").textContent = (d.getMonth()+1) + "월 " + d.getDate() + "일 (" + days[d.getDay()] + ")";
   $("#clock").textContent = hhmm(d.getTime());
+  /* 매장 영업시간 09:00~20:00 — 시간에 맞춰 영업중/영업종료 */
+  var st = document.querySelector(".open");
+  if (st){
+    var m = d.getHours()*60 + d.getMinutes(), openNow = m >= 9*60 && m < 20*60;
+    st.textContent = openNow ? "영업중" : "영업종료";
+    st.classList.toggle("off", !openNow);
+    st.title = "매장 영업시간 09:00~20:00";
+  }
 }
 
 /* ── 주문 목록 ──────────────────────────── */
