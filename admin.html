@@ -116,7 +116,9 @@ input{font:inherit;color:inherit}
 .olist{padding:10px 16px 0;display:flex;flex-direction:column;gap:10px}
 .ocard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;border-left:5px solid var(--line);box-shadow:var(--sh)}
 .ocard.st-received{border-left-color:#E7A93C}
-.ocard.st-preparing{border-left-color:var(--mint)}
+.ocard.st-accepted{border-left-color:#8FB4FF}
+.ocard.st-delivering{border-left-color:#3B82F6}
+.ocard.st-ready{border-left-color:#F0B429}
 .ocard.st-done{border-left-color:#C9CDD1;background:#FBFBFC}
 .ohead{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .ono{font-size:14px;font-weight:800;letter-spacing:-.3px}
@@ -132,7 +134,9 @@ input{font:inherit;color:inherit}
 .amit .evline{flex:1 1 100%;font-size:11.5px;font-weight:800;color:#7A5200;letter-spacing:-.2px}
 .ost{margin-left:auto;display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;font-size:11.5px;font-weight:800}
 .ost.received{background:var(--amber-l);color:var(--amber)}
-.ost.preparing{background:var(--mint-l);color:var(--mint-d)}
+.ost.accepted{background:#EDF4FF;color:#265FBF}
+.ost.delivering{background:#DEEBFF;color:#1D4ED8}
+.ost.ready{background:#FFF3C4;color:#8A5A00}
 .ost.done{background:#E9EBED;color:#6B7075}
 .orows{margin-top:10px;display:flex;flex-direction:column;gap:5px}
 .orow{display:flex;gap:8px;font-size:13px;letter-spacing:-.2px;align-items:flex-start}
@@ -274,14 +278,16 @@ input{font:inherit;color:inherit}
   </div>
   <div class="filters" id="filters">
     <button data-f="all" class="on">전체 <em>0</em></button>
-    <button data-f="received">접수 <em>0</em></button>
-    <button data-f="preparing">준비중 <em>0</em></button>
+    <button data-f="received">🆕 새 주문 <em>0</em></button>
+    <button data-f="accepted">접수 완료 <em>0</em></button>
+    <button data-f="delivering">배달 중 <em>0</em></button>
+    <button data-f="ready">픽업 대기 <em>0</em></button>
     <button data-f="done">완료 <em>0</em></button>
     <button data-f="delivery">🛵 배달 <em>0</em></button>
     <button data-f="pickup">🏪 포장 <em>0</em></button>
   </div>
   <div class="olist" id="orderList"></div>
-  <p class="donefoot">주문은 손님 화면(shop.html)에서 결제하면 이 목록에 바로 들어옵니다.<br>상태를 바꾸면 손님 화면의 ‘진행 상태’에도 그대로 보여요.</p>
+  <p class="donefoot">주문은 손님 화면(shop.html)에서 결제하면 이 목록에 바로 들어옵니다.<br><b>접수하기 → 배달 출발 → 배달 완료</b>(포장은 <b>접수하기 → 포장 준비 완료 → 픽업 완료</b>)<br>버튼을 누를 때마다 손님 화면의 진행 상태도 새로고침 없이 바뀝니다.<br>배달기사님은 폰으로 이 화면을 열고 <b>배달 완료</b>만 누르면 돼요.</p>
 </main>
 
 <main id="tabClaims" hidden>
@@ -392,7 +398,7 @@ function pushOrder(o){
   return sbCall("retail_orders", {
     method: "POST",
     headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify([{ id: o.no, data: o, status: o.status || "received", created_at: isoAt(o.at), updated_at: isoAt() }])
+    body: JSON.stringify([{ id: o.no, data: o, status: oStatus(o), created_at: isoAt(o.at), updated_at: isoAt() }])
   }).catch(function(){});
 }
 function pullOrders(){
@@ -408,10 +414,10 @@ function pullOrders(){
       var no = d.no || r.id;
       var cur = byNo[no];
       if (!cur){
-        d.no = no; d.status = r.status || d.status || "received";
+        d.no = no; d.status = normStatus(r.status || d.status, d.mode);
         byNo[no] = d; changed = true;
-      } else if (r.status && r.status !== (cur.status || "received")){
-        cur.status = r.status; cur.statusAt = cur.statusAt || Date.now(); changed = true;
+      } else if (r.status && normStatus(r.status, cur.mode) !== oStatus(cur)){
+        cur.status = normStatus(r.status, cur.mode); cur.statusAt = cur.statusAt || Date.now(); changed = true;
       }
     });
     if (!changed) return;
@@ -711,7 +717,7 @@ function checkNewOrders(list){
   var fresh = [], touched = false;
   list.forEach(function(o){
     if (!o || !o.no) return;
-    var st = o.status || "received";
+    var st = oStatus(o);
     if (st !== "received"){
       if (!alarm.ack[o.no]){ alarm.ack[o.no] = now; touched = true; }
       if (alarm.pending[o.no]){ delete alarm.pending[o.no]; touched = true; }
@@ -1088,10 +1094,15 @@ function patchItem(pid, patch){
   writeCatalog(doc);
 }
 function readOrders(){
-  try { var d = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); return Array.isArray(d) ? d : []; }
-  catch(e){ return []; }
+  try {
+    var d = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
+    if (!Array.isArray(d)) return [];
+    d.forEach(function(o){ if (o) o.status = oStatus(o); });   /* 예전 preparing → 새 단계 */
+    return d;
+  } catch(e){ return []; }
 }
 function writeOrders(list){
+  (list || []).forEach(function(o){ if (o) o.status = oStatus(o); });
   try { localStorage.setItem(ORDERS_KEY, JSON.stringify(list)); } catch(e){}
   state.orders = list;
 }
@@ -1185,19 +1196,38 @@ function payFlagsHtml(o){
   }
   return h ? '<div class="oflags">' + h + '</div>' : "";
 }
+/* 주문 단계 — 1 새 주문(received) → 2 접수 완료(accepted)
+             → 3 배달 중(delivering) · 픽업 대기(ready) → 4 완료(done)
+   예전에 저장된 preparing 은 배달이면 delivering, 포장이면 ready 로 읽는다. */
+function normStatus(st, mode){
+  if (st === "preparing") return mode === "pickup" ? "ready" : "delivering";
+  return st || "received";
+}
+function oStatus(o){ return normStatus(o && o.status, o && o.mode); }
 function statusLabel(o){
-  if (o.status === "done") return "완료";
-  if (o.status === "preparing") return o.mode === "pickup" ? "준비중" : "배달 출발";
-  return "접수";
+  var st = oStatus(o);
+  if (st === "done") return o.mode === "pickup" ? "픽업 완료" : "배달 완료";
+  if (st === "ready") return "픽업 대기";
+  if (st === "delivering") return "배달 중";
+  if (st === "accepted") return "접수 완료";
+  return "새 주문";
 }
 function todayOrders(){
   return state.orders.filter(function(o){ return isToday(o.at); });
 }
+/* 단계 칩 → 그 단계에 해당하는 주문들 */
+var FILTER_ST = {
+  received: ["received"], accepted: ["accepted"], delivering: ["delivering"],
+  ready: ["ready"], done: ["done"], active: ["accepted", "delivering", "ready"]
+};
 function filteredOrders(){
   var list = todayOrders();
   var f = state.filter;
   if (f === "delivery" || f === "pickup") list = list.filter(function(o){ return o.mode === f; });
-  else if (f !== "all") list = list.filter(function(o){ return (o.status || "received") === f; });
+  else if (f !== "all"){
+    var set = FILTER_ST[f] || [f];
+    list = list.filter(function(o){ return set.indexOf(oStatus(o)) > -1; });
+  }
   return list;
 }
 /* 오픈 기념 이벤트 바나나 1송이(100원) 주문인지 */
@@ -1217,7 +1247,7 @@ function isEventItem(it){
   return !!it && (it.event || String(it.pid || "") === "banana-event" || String(it.name || "").indexOf("[오픈특가]") > -1);
 }
 function orderCardHtml(o){
-  var st = o.status || "received";
+  var st = oStatus(o);
   var h = '<article class="ocard st-' + st + (alarm.pending[o.no] ? ' isnew' : '') + '" data-no="' + esc(o.no) + '">';
   h += '<div class="ohead"><b class="ono">' + esc(o.no) + '</b><span class="otime">' + esc(o.time || hhmm(o.at)) + '</span>'
     +  '<span class="obadge ' + (o.mode === "pickup" ? "pickup" : "delivery") + '">' + (o.mode === "pickup" ? "🏪 포장" : "🛵 배달") + '</span>'
@@ -1246,15 +1276,20 @@ function orderCardHtml(o){
     + (o.disc > 0 ? '<span class="disc">포장 할인 -' + money(o.disc) + '원</span>' : '')
     + '<span>' + esc(o.pay || "결제") + (o.pay ? '' : '') + '</span>'
     + '<b class="tot">결제 ' + money(o.total) + '원</b></div>';
+  var pick = o.mode === "pickup";
+  var step3 = pick ? "ready" : "delivering";
   h += '<div class="oacts">';
   if (st === "received"){
-    h += '<button class="primary" data-act="preparing">' + (o.mode === "pickup" ? "준비 시작" : "준비 시작 · 출발 예정") + '</button>';
-  } else if (st === "preparing"){
-    h += '<button class="primary" data-act="done">' + (o.mode === "pickup" ? "픽업 완료" : "배달 완료") + '</button>'
+    h += '<button class="primary" data-act="accepted">접수하기</button>';
+  } else if (st === "accepted"){
+    h += '<button class="primary" data-act="' + step3 + '">' + (pick ? "포장 준비 완료" : "배달 출발") + '</button>'
       +  '<button class="ghost" data-act="received">되돌리기</button>';
+  } else if (st === "delivering" || st === "ready"){
+    h += '<button class="primary" data-act="done">' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
+      +  '<button class="ghost" data-act="accepted">되돌리기</button>';
   } else {
-    h += '<button class="done" disabled>✓ ' + (o.mode === "pickup" ? "픽업 완료" : "배달 완료") + '</button>'
-      +  '<button class="ghost" data-act="preparing">되돌리기</button>';
+    h += '<button class="done" disabled>✓ ' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
+      +  '<button class="ghost" data-act="' + step3 + '">되돌리기</button>';
   }
   h += '</div></article>';
   return h;
@@ -1265,16 +1300,17 @@ function renderOrders(){
   var sales = 0, wait = 0;
   today.forEach(function(o){
     sales += Number(o.total || 0);
-    if ((o.status || "received") !== "done") wait++;
+    if (oStatus(o) !== "done") wait++;
   });
   $("#sumCount").textContent = today.length + "건";
   $("#sumSales").textContent = money(sales) + "원";
   $("#sumWait").textContent = wait + "건";
 
-  var cnt = {all: today.length, received: 0, preparing: 0, done: 0, delivery: 0, pickup: 0};
+  var cnt = {all: today.length, received: 0, accepted: 0, delivering: 0, ready: 0, done: 0, active: 0, delivery: 0, pickup: 0};
   today.forEach(function(o){
-    var st = o.status || "received";
+    var st = oStatus(o);
     cnt[st] = (cnt[st] || 0) + 1;
+    if (st !== "received" && st !== "done") cnt.active++;
     cnt[o.mode] = (cnt[o.mode] || 0) + 1;
   });
   $$("#filters button").forEach(function(b){
@@ -1321,6 +1357,10 @@ function seedOrder(){
 }
 function setStatus(no, next){
   if (next !== "received") markAck(no);   /* 상태를 바꾸면 새 주문 알림은 끝난 것 */
+  var TOAST = {received: "새 주문으로 되돌렸어요", accepted: "접수했어요 · 손님 화면에 ‘주문 접수’로 보여요",
+               delivering: "배달 출발로 바꿨어요 · 손님 화면에 ‘🚚 배달 시작’",
+               ready: "포장 준비 완료 · 손님 화면에 ‘🛍️ 픽업 가능’",
+               done: "완료 처리했어요 · 손님 화면에 바로 보여요"};
   var list = readOrders();
   for (var i=0;i<list.length;i++){
     if (list[i].no === no){
@@ -1333,7 +1373,7 @@ function setStatus(no, next){
   pushOrderStatus(no, next);
   renderOrders();
   renderBanner(); refreshAlarmUI(); ensureRinging();
-  toast(next === "preparing" ? "준비 시작으로 바꿨어요" : (next === "done" ? "완료 처리했어요" : "접수로 되돌렸어요"));
+  toast(TOAST[next] || "상태를 바꿨어요");
 }
 
 /* ── 사진 접수 ──────────────────────────── */

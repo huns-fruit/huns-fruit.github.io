@@ -435,6 +435,7 @@ a{color:inherit}
 .dtrack span{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:800;color:#9AA0A6;background:var(--bg);border-radius:8px;padding:9px 0;letter-spacing:-.2px}
 .dtrack span.on{background:var(--mint-l);color:var(--mint-d)}
 .dtrack span.on:first-child{background:var(--mint);color:#fff}
+.dmsg{margin:0 0 4px;padding:11px 12px;border-radius:10px;background:var(--mint-l2);border:1px solid #CFEFED;color:#0B7C77;font-size:14px;font-weight:800;letter-spacing:-.2px;line-height:1.45;text-align:center}
 
 /* ── v4 · 진행 중인 내 주문 ─────────────── */
 .ordstrip{display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--line);padding:9px 16px;font-size:13px;letter-spacing:-.2px}
@@ -852,8 +853,8 @@ function pullOrderStatus(){
     rows.forEach(function(r){ byNo[r.id] = r.status; });
     var changed = false;
     state.orders.forEach(function(o){
-      var st = byNo[o.no];
-      if (st && st !== (o.status || "received")){ o.status = st; o.statusAt = Date.now(); changed = true; }
+      var st = byNo[o.no] ? normStatus(byNo[o.no], o.mode) : "";
+      if (st && st !== oStatus(o)){ o.status = st; o.statusAt = Date.now(); changed = true; }
     });
     if (!changed) return;
     saveOrders();
@@ -1296,6 +1297,7 @@ function rememberMyOrder(no){
 function loadOrders(){
   try { var d = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); state.orders = Array.isArray(d) ? d : []; }
   catch(e){ state.orders = []; }
+  state.orders.forEach(function(o){ if (o) o.status = oStatus(o); });
   /* 이 화면은 손님용 — 사장님이 같은 브라우저로 열어 받아 둔 다른 손님 주문은 보여주지 않는다 */
   var mine = myOrderNos();
   if (mine.length) state.orders = state.orders.filter(function(o){ return mine.indexOf(o.no) > -1; });
@@ -1304,10 +1306,38 @@ function saveOrders(){
   try { localStorage.setItem(ORDERS_KEY, JSON.stringify(state.orders)); } catch(e){}
 }
 function lastOrder(){ return state.orders.length ? state.orders[0] : null; }
+/* 주문 단계 — 1 접수 대기(received) → 2 주문 접수(accepted)
+             → 3 배달 시작(delivering) · 픽업 가능(ready) → 4 완료(done)
+   예전에 저장된 preparing 은 배달이면 delivering, 포장이면 ready 로 읽는다. */
+function normStatus(st, mode){
+  if (st === "preparing") return mode === "pickup" ? "ready" : "delivering";
+  return st || "received";
+}
+function oStatus(o){ return normStatus(o && o.status, o && o.mode); }
 function statusLabel(o){
-  if (o.status === "done") return "완료";
-  if (o.status === "preparing") return o.mode === "pickup" ? "준비중" : "배달 출발";
-  return "접수";
+  var st = oStatus(o), pick = o.mode === "pickup";
+  if (st === "done") return pick ? "✅ 픽업 완료" : "✅ 배달 완료";
+  if (st === "ready") return "🛍️ 픽업 가능";
+  if (st === "delivering") return "🚚 배달 시작";
+  if (st === "accepted") return "주문 접수";
+  return "접수 대기";
+}
+function statusMsg(o){
+  var st = oStatus(o), pick = o.mode === "pickup";
+  if (st === "done") return pick ? "픽업이 끝났어요. 맛있게 드세요!" : "배달이 끝났어요. 맛있게 드세요!";
+  if (st === "ready") return "매장에서 바로 받아 가세요!";
+  if (st === "delivering") return "기사님이 출발했어요!";
+  if (st === "accepted") return "가게에서 주문을 확인했어요.";
+  return "가게에서 확인 중이에요.";
+}
+function statusHead(o, st){
+  st = st || oStatus(o);
+  var pick = o.mode === "pickup";
+  if (st === "done") return pick ? "✅ 픽업 완료" : "✅ 배달 완료";
+  if (st === "ready") return "🛍️ 픽업 가능해요";
+  if (st === "delivering") return "🚚 배달이 시작됐어요";
+  if (st === "accepted") return "주문을 확인했어요";
+  return "주문이 접수됐어요";
 }
 
 /* ── 최근 주문자 기억 ── */
@@ -2227,7 +2257,7 @@ function renderOrderStrip(){
   if (!el) return;
   var o = lastOrder();
   if (!o){ el.hidden = true; el.innerHTML = ""; return; }
-  var st = statusLabel(o), done = o.status === "done";
+  var st = statusLabel(o), done = oStatus(o) === "done";
   el.hidden = false;
   el.innerHTML = '<span class="oi">' + (done ? "✅" : "📦") + '</span>'
     + '<div class="ot"><b>' + esc(o.no) + ' · ' + st + '</b>'
@@ -2491,17 +2521,18 @@ function showDone(ord){
   if (!o) return;
   state.order = o;
   var live = findOrder(o.no) || o;
-  var st = live.status || "received";
-  var st2 = o.mode === "pickup" ? "준비중" : "배달 출발";
+  var st = oStatus(live);
+  var pick = o.mode === "pickup";
+  var st2 = pick ? "픽업 가능" : "배달 시작";
+  var moved = (st === "delivering" || st === "ready" || st === "done");
   var z = o.mode === "pickup" ? ZONES.pickup : ZONES[o.zone];
-  var h = '<div class="dchk">✓</div>'
-    + '<h1>주문이 접수됐어요</h1>'
-    + '<p class="sub"><b>' + esc(o.name) + '</b>님, 주문 고맙습니다.<br>'
-    + '<span>사장님이 확인하면 연락드리고 준비를 시작해요.</span></p>';
+  var h = '<div class="dchk">' + (st === "delivering" ? "🛵" : (st === "ready" ? "🛍️" : "✓")) + '</div>'
+    + '<h1>' + statusHead(o, st) + '</h1>'
+    + '<p class="sub"><b>' + esc(o.name) + '</b>님, ' + (st === "received" ? '주문 고맙습니다.<br><span>' + statusMsg(live) + '</span>' : statusMsg(live)) + '</p>';
 
   h += '<div class="dtrack">'
     + '<span class="on">접수</span>'
-    + '<span class="' + (st === "preparing" || st === "done" ? 'on' : '') + '">' + st2 + '</span>'
+    + '<span class="' + (moved ? 'on' : '') + '">' + st2 + '</span>'
     + '<span class="' + (st === "done" ? 'on' : '') + '">완료</span></div>';
   h += '<div class="dcard">'
     + '<div class="drow no"><span>주문번호</span><b>' + o.no + '</b></div>'
@@ -2513,6 +2544,7 @@ function showDone(ord){
   }
   h += '<div class="drow"><span>받는 시간</span><b>' + esc(o.slotLabel || z.eta) + '</b></div>'
     + '<div class="drow"><span>진행 상태</span><b id="liveStatus">' + statusLabel(live) + '</b></div>'
+    + '<div class="dmsg" id="liveMsg">' + statusMsg(live) + '</div>'
     + '<div class="drow"><span>결제 수단</span><b>' + esc(o.pay) + '</b></div>'
     + (o.depositor ? '<div class="drow"><span>입금자명</span><b>' + esc(o.depositor) + '</b></div>' : '')
     + (o.receiptNo ? '<div class="drow"><span>현금영수증</span><b>' + esc(o.receiptLabel || receiptLabel(o.receiptType)) + ' ' + esc(o.receiptNo) + '</b></div>' : '')
@@ -2532,7 +2564,9 @@ function showDone(ord){
 
   var guide = "";
   if (o.mode === "pickup"){
-    guide = "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531";
+    guide = (st === "ready" || st === "done")
+      ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531"
+      : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531";
     if (o.disc > 0) guide += "<br>1,000원 포장 할인 쿠폰은 오늘 하루 1번 사용할 수 있어요.";
   } else if (o.zone === "city"){
     guide = "🛵 <b>낮 12시 이전 주문은 당일 또는 익일 배달</b>이에요.<br>배달 전에 기사님이 " + esc(o.phone) + "로 연락드려요.";
@@ -2541,7 +2575,17 @@ function showDone(ord){
   }
   if (o.pickle) guide += "<br><br>🧺 <b>절임배추</b>는 최소 4일 전 주문 · 매주 금요일 배송/픽업이며, 주문 후 환불이 어렵습니다.";
   if (o.memo) guide += "<br><br>📝 요청사항: " + esc(o.memo);
-  guide += "<br><br>📦 사장님이 주문을 확인하면 위 진행 상태가 바뀌어요.";
+  if (st === "done"){
+    guide += "<br><br>맛있게 드세요! 다음에 또 뵙겠습니다.";
+  } else if (st === "delivering"){
+    guide += "<br><br>도착하면 기사님이 연락드려요. 위 진행 상태는 가게에서 <b>배달 완료</b>를 누르면 자동으로 바뀝니다.";
+  } else if (st === "ready"){
+    guide += "<br><br>오시는 길: 단구로 398 상가동2동 1층 101호. 위 진행 상태는 가게에서 <b>픽업 완료</b>를 누르면 자동으로 바뀝니다.";
+  } else if (st === "accepted"){
+    guide += "<br><br>✅ 가게에서 주문을 확인했어요. 준비가 끝나면 위 진행 상태가 자동으로 바뀝니다.";
+  } else {
+    guide += "<br><br>📦 가게에서 확인 중이에요. 위 진행 상태는 새로고침하지 않아도 자동으로 바뀝니다.";
+  }
   h += '<div class="dguide">' + guide + '</div>'
     + '<button class="ghost" id="doneClaim">📷 받은 상품 이상하면 사진 접수</button>'
     + '<button class="cta" id="doneOk">확인</button>'
