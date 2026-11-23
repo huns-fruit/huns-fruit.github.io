@@ -1735,8 +1735,13 @@ function showDone(ord){
       + '<span>' + money(it.sum) + '원</span></div>';
   }
   h += '</div></div>';
-  /* 무통장입금 주문이면 완료 화면에도 계좌를 크게 보여 준다 */
-  if (String(o.pay || "").indexOf("무통장") > -1) h += bankBoxHtml(o.total);
+  /* 무통장입금 주문이면 완료 화면에도 계좌를 크게 보여 준다 — 단, 취소된 주문은 입금하지 말라고 알린다 */
+  if (st === "canceled"){
+    if (String(o.pay || "").indexOf("무통장") > -1){
+      h += '<div class="cxpay">🏦 무통장입금 주문이에요 · <b>취소된 주문이니 입금하지 마세요.</b>'
+        + '<span>이미 입금하셨다면 매장(' + STORE.tel + ')으로 연락 주세요.</span></div>';
+    }
+  } else if (String(o.pay || "").indexOf("무통장") > -1) h += bankBoxHtml(o.total);
 
   var guide = "";
   if (o.mode === "pickup"){
