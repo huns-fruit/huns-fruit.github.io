@@ -172,7 +172,7 @@ var PRODUCTS = [
      badges:[], origin:"국내산", price:9900, tags:["키위"]}),
 
   P({id:"tomato-retail-23", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["fruit","deal"], img:"tomato",
-     badges:[["시기상 A급 아님","hot"]], desc:"시기상 A급이 아닙니다", price:6900, tags:["토마토"]}),
+     badges:[["오늘 특가","hot"]], desc:"가격 거품 뺀 실속 5kg (2~3번과)", price:6900, tags:["토마토"]}),
 
   P({id:"tomato", name:"완숙 토마토", unit:"5kg · 1번", cats:["fruit"], img:"tomato", grade:"home",
      badges:[], origin:"국내산", desc:"완숙 토마토 1번과", price:15000, tags:["토마토"],
