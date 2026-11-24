@@ -223,3 +223,11 @@ function splitDeletedOrders(list, present, asked, opts){
   });
   return {kept: kept, dead: dead, orphans: orphans};
 }
+
+/* Shared catalog read; callers retain their own state and rendering rules. */
+function corePullCatalogValue(){
+  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
+    var v = rows && rows[0] && rows[0].value;
+    return v && v.items ? v : undefined;
+  });
+}

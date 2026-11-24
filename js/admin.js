@@ -18,9 +18,8 @@ function pushCatalog(doc){
 }
 function pullCatalog(){
   if (!sbOn()) return Promise.resolve();
-  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
-    var v = rows && rows[0] && rows[0].value;
-    if (!v || !v.items) return;
+  return corePullCatalogValue().then(function(v){
+    if (!v) return;
     var local = readCatalog();
     if (Number(v.updatedAt || 0) <= Number(local.updatedAt || 0)) return;
     v.updatedAt = Number(v.updatedAt || Date.now());
