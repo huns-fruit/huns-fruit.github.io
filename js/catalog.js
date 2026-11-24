@@ -47,7 +47,7 @@ function P(o){ return o; }
    실제로 임박하지 않았는데 `2팩 남음` 같은 경고가 뜨지 않게 한다(2026-11-23 사장님 지적).
    품절·임박을 알리고 싶으면 사장님 페이지에서 그 품목의 남은 수량을 직접 낮추면 된다. */
 
-var SALE_DATE = "2026-11-25";
+var SALE_DATE = "2026-11-24";
 var STRAWBERRY_BOX = "strawberry-box-20261125";
 var WHOLESALE_MIN = { "bulk-veg":50000, "bulk-fruit":100000 };
 
