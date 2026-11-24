@@ -168,8 +168,11 @@ var PRODUCTS = [
   P({id:"greenkiwi", name:"그린키위", unit:"1팩", cats:["fruit"], img:"kiwi", grade:"home",
      badges:[], origin:"뉴질랜드산", desc:"새콤한 그린키위", price:8000, tags:["키위"]}),
 
-  P({id:"goldkiwi", name:"골드키위", unit:"1팩", cats:["fruit"], img:"kiwi", grade:"A",
-     badges:[], origin:"뉴질랜드산", desc:"달콤한 골드키위", price:9000, tags:["키위"]}),
+  P({id:"goldkiwi-local-12", name:"국내산 골드키위", unit:"12개", cats:["fruit"], img:"kiwi",
+     badges:[], origin:"국내산", price:9900, tags:["키위"]}),
+
+  P({id:"tomato-retail-23", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["fruit","deal"], img:"tomato",
+     badges:[["시기상 A급 아님","hot"]], desc:"시기상 A급이 아닙니다", price:6900, tags:["토마토"]}),
 
   P({id:"tomato", name:"완숙 토마토", unit:"5kg · 1번", cats:["fruit"], img:"tomato", grade:"home",
      badges:[], origin:"국내산", desc:"완숙 토마토 1번과", price:15000, tags:["토마토"],
@@ -179,6 +182,8 @@ var PRODUCTS = [
   P({id:"cabbage", name:"배추", unit:"1망 · 55사이즈 정품", cats:["veg"], img:"cabbage",
      badges:[], origin:"국내산", desc:"김장 배추 1망", price:7900, tags:["배추 김장"],
      tip:"김장 배추는 4일 전 예약하세요"}),
+  P({id:"cabbage-retail-deal", name:"행사용 배추", unit:"1망", cats:["veg","deal"], img:"cabbage",
+     badges:[["행사","hot"]], price:5000, tags:["배추 김장"]}),
   P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", origin:"국내산", desc:"5단 묶음", badges:[["떨이","hot"]], price:9900, tags:["무 총각김치"]}),
   P({id:"jjokpa", name:"흙쪽파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"흙 묻은 쪽파 1단", price:3000, tags:["쪽파 파 김장"]}),
   P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"],
