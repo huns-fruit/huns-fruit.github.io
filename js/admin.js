@@ -580,6 +580,7 @@ var state = {
   filter: "all",
   cf: "all",
   q: "",
+  expandedProducts: new Set(),
   catalog: {},
   orders: [],
   claims: []
@@ -1116,13 +1117,14 @@ function prodMatches(p){
 function prodRowHtml(p){
   var sold = isSold(p), stock = effStock(p), cmt = ov(p.id).comment || "";
   var low = (!sold && stock !== null && stock <= 5) ? '<span class="low' + (stock <= 2 ? '' : ' soon') + '">오늘 ' + stock + unitWord(p) + ' 남음</span>' : '';
+  var expanded = state.expandedProducts.has(p.id);
   var h = '<div class="prow' + (sold ? ' sold' : '') + '" data-pid="' + p.id + '">';
   h += '<div class="th">' + thumb(p) + (sold ? '<span class="so">품절</span>' : '') + '</div>';
   h += '<div class="pbody"><div class="pname"><b>' + esc(p.name) + '</b><small>' + esc(p.unit) + '</small>'
     + (sold ? '<span class="low soldtag">품절</span>' : '') + low + gradeChipHtml(p) + '</div>';
   h += '<div class="pctl">';
   if (p.opts){
-    h += '<button class="pexpand" data-expand="' + p.id + '">옵션 ' + p.opts.length + '개 가격</button>';
+    h += '<button class="pexpand" data-expand="' + p.id + '" aria-controls="product-options-' + p.id + '" aria-expanded="' + expanded + '">옵션 ' + p.opts.length + '개 가격</button>';
   } else {
     h += '<span class="pfield"><label>가격</label><input type="number" inputmode="numeric" data-price="' + p.id + '" value="' + effPrice(p, 0) + '" aria-label="' + esc(p.name) + ' 가격"><em>원</em></span>';
   }
@@ -1135,7 +1137,7 @@ function prodRowHtml(p){
   }
   h += '</div>';
   if (p.opts){
-    h += '<div class="popts">';
+    h += '<div class="popts" id="product-options-' + p.id + '"' + (expanded ? '' : ' hidden') + '>';
     for (var i=0;i<p.opts.length;i++){
       h += '<div class="popt"><span class="ol">' + esc(p.opts[i].label) + '</span>'
         +  '<span class="pfield"><input type="number" inputmode="numeric" data-opt="' + p.id + '" data-oi="' + i + '" value="' + effPrice(p, i) + '" aria-label="' + esc(p.name) + ' ' + esc(p.opts[i].label) + ' 가격"><em>원</em></span></div>';
@@ -1254,8 +1256,14 @@ function bind(){
   $("#prodList").addEventListener("click", function(e){
     var ex = e.target.closest("[data-expand]");
     if (ex){
-      var row = ex.closest(".prow");
-      if (row) row.classList.toggle("open");
+      var pid = ex.getAttribute("data-expand");
+      var panel = document.getElementById(ex.getAttribute("aria-controls"));
+      if (!panel) return;
+      var expanded = panel.hidden;
+      if (expanded) state.expandedProducts.add(pid);
+      else state.expandedProducts.delete(pid);
+      panel.hidden = !expanded;
+      ex.setAttribute("aria-expanded", String(expanded));
       return;
     }
     var so = e.target.closest("[data-sold]");

@@ -202,14 +202,14 @@ input{font:inherit;color:inherit}
 .psearch input{flex:1 1 auto;border:0;outline:none;background:transparent;font-size:15px;letter-spacing:-.2px}
 .pnote{margin:10px 0 0;font-size:12px;color:var(--ink3);line-height:1.6;letter-spacing:-.1px}
 .pnote b{color:var(--mint-d)}
-.plist{padding:12px 16px 0;display:flex;flex-direction:column;gap:9px}
-.prow{background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px;display:flex;gap:11px;align-items:flex-start}
+.plist{padding:12px 16px 0;display:grid;grid-template-columns:minmax(0,1fr);gap:9px;overflow-anchor:none}
+.prow{background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px;display:grid;grid-template-columns:56px minmax(0,1fr);gap:11px;align-items:start;contain:paint}
 .prow.sold{background:#FBFBFC}
 .prow .th{width:56px;height:56px;border-radius:10px;overflow:hidden;background:var(--bg);flex:0 0 auto;position:relative}
 .prow .th img{width:100%;height:100%;object-fit:cover}
 .prow.sold .th img{opacity:.4}
 .prow .th .so{position:absolute;inset:0;display:grid;place-items:center;background:rgba(34,34,34,.35);color:#fff;font-size:11px;font-weight:800}
-.pbody{flex:1 1 auto;min-width:0}
+.pbody{min-width:0}
 .pname{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap}
 .pname b{font-size:15px;font-weight:800;letter-spacing:-.4px}
 .pname small{font-size:12px;color:var(--ink3)}
@@ -227,10 +227,10 @@ input{font:inherit;color:inherit}
 .pexpand{height:36px;padding:0 10px;border-radius:9px;border:1.5px dashed #DDE1E4;background:#fff;color:var(--ink2);font-size:12.5px;font-weight:800}
 .pcmt{margin-top:7px;width:100%;height:40px;border:1.5px solid #E4E6E8;border-radius:9px;padding:0 10px;font-size:13.5px;outline:none;letter-spacing:-.2px;background:#fff}
 .pcmt:focus{border-color:var(--mint)}
-.popts{margin-top:8px;display:none;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:9px}
-.prow.open .popts{display:flex}
-.popt{display:flex;align-items:center;gap:8px;font-size:12.5px}
-.popt .ol{flex:1 1 auto;min-width:0;color:var(--ink2);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.popts{margin-top:8px;display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:9px}
+.popts[hidden]{display:none}
+.popt{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;font-size:12.5px}
+.popt .ol{min-width:0;color:var(--ink2);font-weight:700;overflow-wrap:anywhere}
 .popt .pfield{height:36px}
 .pload{padding:6px 16px 0;text-align:right}
 .pload button{height:36px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:12.5px;font-weight:800;color:var(--ink3)}
