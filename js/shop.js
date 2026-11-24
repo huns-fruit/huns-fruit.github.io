@@ -288,11 +288,7 @@ function stockOf(p){
   if (typeof p.stock === "number") return p.stock;
   return null;
 }
-function isSold(p){
-  if (ov(p.id).soldout) return true;
-  var s = stockOf(p);
-  return s !== null && s <= 0;
-}
+function isSold(p){ return coreIsSold(p, stockOf); }
 function commentOf(p){ var c = ov(p.id).comment; return c ? String(c).trim() : ""; }
 /* ── 과일 등급 (사장님이 고친 등급이 있으면 그걸 우선) ── */
 function gradeOf(p, oi){

@@ -685,11 +685,7 @@ function effStock(p){
   if (typeof p.stock === "number") return p.stock;
   return null;
 }
-function isSold(p){
-  if (ov(p.id).soldout) return true;
-  var s = effStock(p);
-  return s !== null && s <= 0;
-}
+function isSold(p){ return coreIsSold(p, effStock); }
 
 
 

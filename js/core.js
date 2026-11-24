@@ -231,3 +231,10 @@ function corePullCatalogValue(){
     return v && v.items ? v : undefined;
   });
 }
+
+/* Keep each screen’s stock calculation while sharing the sold-out rule. */
+function coreIsSold(p, getStock){
+  if (ov(p.id).soldout) return true;
+  var s = getStock(p);
+  return s !== null && s <= 0;
+}
