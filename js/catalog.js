@@ -2,41 +2,41 @@
    사진은 assets/img/*.webp 파일. HTML 안에 base64 로 넣지 않습니다. */
 /* 상품 사진 — 단일 HTML 안 base64(471KB)였던 35장을 파일로 분리 (lazy loading 실제 동작) */
 var IMG = {
-  strawberry: "assets/img/strawberry.webp?v=20261124b",
-  tangerine: "assets/img/tangerine.webp?v=20261124b",
-  goldenhwang: "assets/img/goldenhwang.webp?v=20261124b",
-  apple: "assets/img/apple.webp?v=20261124b",
-  banana: "assets/img/banana.webp?v=20261124b",
-  cabbage: "assets/img/cabbage.webp?v=20261124b",
-  fig: "assets/img/fig.webp?v=20261124b",
-  persimmon: "assets/img/persimmon.webp?v=20261124b",
-  daebong: "assets/img/daebong.webp?v=20261124b",
-  kiwi: "assets/img/kiwi.webp?v=20261124b",
-  mango: "assets/img/mango.webp?v=20261124b",
-  shine: "assets/img/shine.webp?v=20261124b",
-  pineapple: "assets/img/pineapple.webp?v=20261124b",
-  jujube: "assets/img/jujube.webp?v=20261124b",
-  chestnut: "assets/img/chestnut.webp?v=20261124b",
-  blueberry: "assets/img/blueberry.webp?v=20261124b",
-  campbell: "assets/img/campbell.webp?v=20261124b",
-  pomegranate: "assets/img/pomegranate.webp?v=20261124b",
-  orange: "assets/img/orange.webp?v=20261124b",
-  tomato: "assets/img/tomato.webp?v=20261124b",
-  cheonggat: "assets/img/cheonggat.webp?v=20261124b",
-  altari: "assets/img/altari.webp?v=20261124b",
-  daepa: "assets/img/daepa.webp?v=20261124b",
-  aehobak: "assets/img/aehobak.webp?v=20261124b",
-  buchu: "assets/img/buchu.webp?v=20261124b",
-  cheongyang: "assets/img/cheongyang.webp?v=20261124b",
-  kkwari: "assets/img/kkwari.webp?v=20261124b",
-  potato: "assets/img/potato.webp?v=20261124b",
-  carrot: "assets/img/carrot.webp?v=20261124b",
-  mu: "assets/img/mu.webp?v=20261124b",
-  onion: "assets/img/onion.webp?v=20261124b",
-  lettuce: "assets/img/lettuce.webp?v=20261124b",
-  sangchu: "assets/img/sangchu.webp?v=20261124b",
-  perilla: "assets/img/perilla.webp?v=20261124b",
-  egg: "assets/img/egg.webp?v=20261124b"
+  strawberry: "assets/img/strawberry.webp?v=20261125-sale1",
+  tangerine: "assets/img/tangerine.webp?v=20261125-sale1",
+  goldenhwang: "assets/img/goldenhwang.webp?v=20261125-sale1",
+  apple: "assets/img/apple.webp?v=20261125-sale1",
+  banana: "assets/img/banana.webp?v=20261125-sale1",
+  cabbage: "assets/img/cabbage.webp?v=20261125-sale1",
+  fig: "assets/img/fig.webp?v=20261125-sale1",
+  persimmon: "assets/img/persimmon.webp?v=20261125-sale1",
+  daebong: "assets/img/daebong.webp?v=20261125-sale1",
+  kiwi: "assets/img/kiwi.webp?v=20261125-sale1",
+  mango: "assets/img/mango.webp?v=20261125-sale1",
+  shine: "assets/img/shine.webp?v=20261125-sale1",
+  pineapple: "assets/img/pineapple.webp?v=20261125-sale1",
+  jujube: "assets/img/jujube.webp?v=20261125-sale1",
+  chestnut: "assets/img/chestnut.webp?v=20261125-sale1",
+  blueberry: "assets/img/blueberry.webp?v=20261125-sale1",
+  campbell: "assets/img/campbell.webp?v=20261125-sale1",
+  pomegranate: "assets/img/pomegranate.webp?v=20261125-sale1",
+  orange: "assets/img/orange.webp?v=20261125-sale1",
+  tomato: "assets/img/tomato.webp?v=20261125-sale1",
+  cheonggat: "assets/img/cheonggat.webp?v=20261125-sale1",
+  altari: "assets/img/altari.webp?v=20261125-sale1",
+  daepa: "assets/img/daepa.webp?v=20261125-sale1",
+  aehobak: "assets/img/aehobak.webp?v=20261125-sale1",
+  buchu: "assets/img/buchu.webp?v=20261125-sale1",
+  cheongyang: "assets/img/cheongyang.webp?v=20261125-sale1",
+  kkwari: "assets/img/kkwari.webp?v=20261125-sale1",
+  potato: "assets/img/potato.webp?v=20261125-sale1",
+  carrot: "assets/img/carrot.webp?v=20261125-sale1",
+  mu: "assets/img/mu.webp?v=20261125-sale1",
+  onion: "assets/img/onion.webp?v=20261125-sale1",
+  lettuce: "assets/img/lettuce.webp?v=20261125-sale1",
+  sangchu: "assets/img/sangchu.webp?v=20261125-sale1",
+  perilla: "assets/img/perilla.webp?v=20261125-sale1",
+  egg: "assets/img/egg.webp?v=20261125-sale1"
 };
 
 function P(o){ return o; }
@@ -47,18 +47,36 @@ function P(o){ return o; }
    실제로 임박하지 않았는데 `2팩 남음` 같은 경고가 뜨지 않게 한다(2026-11-23 사장님 지적).
    품절·임박을 알리고 싶으면 사장님 페이지에서 그 품목의 남은 수량을 직접 낮추면 된다. */
 
+var SALE_DATE = "2026-11-25";
+var STRAWBERRY_BOX = "strawberry-box-20261125";
+var WHOLESALE_MIN = { "bulk-veg":50000, "bulk-fruit":100000 };
+
+function koreanDateKey(date){
+  return new Date((date || new Date()).getTime() + 9 * 3600000).toISOString().slice(0, 10);
+}
+
+function saleStarted(){ return koreanDateKey() >= SALE_DATE; }
+
+function productAvailable(p){
+  var started = saleStarted();
+  return (!p.startsOnSale || started) && (!p.endsOnSale || !started);
+}
+
 var PRODUCTS = [
+  P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4",
+     cats:["deal","fruit"], img:"strawberry", price:40000, stock:50, startsOnSale:true,
+     badges:[["50박스 한정","hot"]], desc:"포장 단독 구매 가능 · 배달은 다른 상품 15,000원 이상 함께 주문"}),
   /* ── 오늘특가 ── */
 
   P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
-     badges:[["행사","hot"]], origin:"필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
+     badges:[["행사","hot"]], origin:"베트남/필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
      tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
 
   P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
      badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:9900, tags:["파인애플"],
      tip:"뒤집어 하루 두면 더 달아져요"}),
 
-  P({id:"daebong-15", name:"대봉감", unit:"15알", cats:["deal"], img:"daebong", grade:"C",
+  P({id:"daebong-15", name:"대봉감 가정용", unit:"15알", cats:["deal"], img:"daebong", grade:"C",
      badges:[["행사","hot"]], origin:"국내산", desc:"15알 행사 · 익혀 드세요", price:9900, tags:["감"]}),
 
   P({id:"blueberry", name:"블루베리", unit:"3팩", cats:["deal"], img:"blueberry", grade:"home",
@@ -69,17 +87,17 @@ var PRODUCTS = [
      ogrades:["home","A","A"],
      badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"향·당도 좋은 생딸기 · 4x5 1팩 7,900원", stock:60,
      tip:"냉장 2시간 뒤 드시면 더 달아요",
-     opts:[{label:"4x5 · 1팩", sub:"가장 많이 담기는 사이즈", price:7900},
-           {label:"3x5 · 1팩", sub:"알이 큰 사이즈", price:9900},
-           {label:"3x4 · 1팩", sub:"선물용 큰 알", price:13800}],
+     opts:[{label:"4x5 · 1팩", sub:"하루 재고", price:7900},
+           {label:"3x5 · 1팩", sub:"재입고", price:9900},
+           {label:"3x4 · 1팩", sub:"선물용 · 재입고", price:13800}],
      tags:["딸기"]}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */
-  P({id:"fig", name:"무화과 가정용", unit:"1kg", cats:["fruit"], img:"fig", grade:"home",
+  P({id:"fig", endsOnSale:true, name:"무화과 가정용", unit:"1kg", cats:["fruit"], img:"fig", grade:"home",
      badges:[["국내산","dom"]], origin:"국내산", desc:"실속 가정용 · 달콤한 무화과", price:5900, tags:["무화과"],
      tip:"냉장 1~2일 안에 드세요"}),
 
-  P({id:"fig-a", name:"무화과 A급", unit:"1kg", cats:["fruit"], img:"fig", grade:"A",
+  P({id:"fig-a", endsOnSale:true, name:"무화과 A급", unit:"1kg", cats:["fruit"], img:"fig", grade:"A",
      badges:[["국내산","dom"]], origin:"국내산", desc:"엄선한 품질보증 · 선물에도 좋은 A급", price:9900, tags:["무화과"],
      tip:"냉장 1~2일 안에 드세요"}),
 
@@ -95,7 +113,7 @@ var PRODUCTS = [
   P({id:"hwanggeumhyang", name:"황금향", unit:"3kg", cats:["fruit","deal"], img:"goldenhwang", grade:"A",
      badges:[["행사","hot"]], origin:"제주산", desc:"새콤달콤 황금향 · 3kg 행사가", price:12800, tags:["귤 감귤"]}),
 
-  P({id:"tangerine", name:"제주 귤", unit:"5kg", cats:["fruit"], img:"tangerine", grade:"home",
+  P({id:"tangerine", endsOnSale:true, name:"제주 귤", unit:"5kg", cats:["fruit"], img:"tangerine", grade:"home",
      ogrades:["A","A","B","B"],
      badges:[], origin:"제주산", desc:"사이즈·품종 골라 담기", stock:40,
      tip:"한두 알 껍질을 벗겨 두었다 드세요",
@@ -104,6 +122,13 @@ var PRODUCTS = [
            {label:"서귀포 B급 M · 5kg", price:12800},
            {label:"서귀포 B급 S/2S · 5kg", price:15000}],
      tags:["귤 감귤"]}),
+
+  P({id:"tangerine-home-2l", name:"가정용 감귤 B급", unit:"5kg · 2L/L", cats:["fruit","deal"], img:"tangerine",
+     grade:"B", origin:"제주산", price:7900, startsOnSale:true, badges:[["특가","hot"]]}),
+  P({id:"tangerine-seogwipo-m", name:"서귀포 감귤 B급", unit:"5kg · M", cats:["fruit"], img:"tangerine",
+     grade:"B", origin:"제주 서귀포", price:12800, startsOnSale:true}),
+  P({id:"tangerine-small", name:"제주 감귤", unit:"5kg · S·2S", cats:["fruit"], img:"tangerine",
+     origin:"제주산", price:15000, startsOnSale:true}),
 
   P({id:"emperor", name:"중문 황제귤", unit:"5kg · M", cats:["fruit"], img:"tangerine", grade:"A",
      badges:[["프리미엄","gift"]], origin:"제주 중문", desc:"중문 명품 귤 M 사이즈", price:36000, tags:["귤 감귤"]}),
@@ -130,10 +155,11 @@ var PRODUCTS = [
      badges:[], origin:"미국산", desc:"알 굵은 석류", price:5000, tags:["석류"]}),
 
   P({id:"apple", name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"home",
-     ogrades:["home","A"],
+     ogrades:["home","home","A"],
      badges:[], origin:"안동", desc:"아삭한 안동 부사", stock:40, tip:"흐르는 물에 씻어 껍질째 드세요",
      opts:[{label:"15개", sub:"가정용", price:9900},
-           {label:"10kg", sub:"한 상자", price:25000}],
+           {label:"10kg", sub:"한 상자", price:25000},
+           {label:"A급 · 10kg", sub:"품질보증", price:35000, startsOnSale:true}],
      tags:["사과 부사"]}),
 
   P({id:"orange", name:"오렌지", unit:"1봉지", cats:["fruit"], img:"orange", grade:"home",
@@ -145,18 +171,18 @@ var PRODUCTS = [
   P({id:"goldkiwi", name:"골드키위", unit:"1팩", cats:["fruit"], img:"kiwi", grade:"A",
      badges:[], origin:"뉴질랜드산", desc:"달콤한 골드키위", price:9000, tags:["키위"]}),
 
-  P({id:"tomato", name:"토마토", unit:"5kg · 1번", cats:["fruit"], img:"tomato", grade:"home",
+  P({id:"tomato", name:"완숙 토마토", unit:"5kg · 1번", cats:["fruit"], img:"tomato", grade:"home",
      badges:[], origin:"국내산", desc:"완숙 토마토 1번과", price:15000, tags:["토마토"],
      tip:"상온에서 하루 두면 더 익어요"}),
 
   /* ── 신선 채소 ── */
-  P({id:"cabbage", name:"배추", unit:"1망", cats:["veg"], img:"cabbage",
+  P({id:"cabbage", name:"배추", unit:"1망 · 55사이즈 정품", cats:["veg"], img:"cabbage",
      badges:[], origin:"국내산", desc:"김장 배추 1망", price:7900, tags:["배추 김장"],
      tip:"김장 배추는 4일 전 예약하세요"}),
-  P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", badges:[], origin:"국내산", desc:"5단 묶음", price:9900, tags:["무 총각김치"]}),
+  P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", origin:"국내산", desc:"5단 묶음", badges:[["떨이","hot"]], price:9900, tags:["무 총각김치"]}),
   P({id:"jjokpa", name:"흙쪽파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"흙 묻은 쪽파 1단", price:3000, tags:["쪽파 파 김장"]}),
-  P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"], img:"chestnut", grade:"B",
-     badges:[], origin:"국내산", desc:"1kg · 알밤", price:3000, tags:["밤"]}),
+  P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"],
+     price:3000, startsOnSale:true}),
   P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2000, stock:20, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
   P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1000, tags:["호박"]}),
   P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["부추"]}),
@@ -171,16 +197,82 @@ var PRODUCTS = [
   P({id:"perilla", name:"깻잎", unit:"1봉지", cats:["veg"], img:"perilla", badges:[], origin:"국내산", desc:"1봉지", price:1500, tags:["깻잎"], tip:"씻지 말고 냉장 보관하세요"}),
 
   /* ── 계란 ── */
-  P({id:"egg-xl", name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg", badges:[], origin:"국내산", desc:"30구 1판", price:6000, stock:8, tags:["계란 달걀"], tip:"냉장고 안쪽 칸에 두세요"}),
+  P({id:"egg-large-20261125", name:"대란", unit:"1판 (30구)", cats:["egg"], img:"egg",
+     origin:"국내산", price:5000, stock:4, startsOnSale:true}),
+  P({id:"egg-xl-20261125", name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg",
+     origin:"국내산", price:6000, stock:0, startsOnSale:true}),
+  P({id:"egg-xl", endsOnSale:true, name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg", badges:[], origin:"국내산", desc:"30구 1판", price:6000, stock:8, tags:["계란 달걀"], tip:"냉장고 안쪽 칸에 두세요"}),
   P({id:"egg-king", name:"판없는 왕란", unit:"1판 (30구)", cats:["egg"], img:"egg", grade:"home",
      badges:[["특가","hot"]], origin:"국내산", desc:"판 없이 알만 담은 왕란 30구", price:6000, tags:["계란 달걀 왕란"],
      tip:"냉장고 안쪽 칸에 두세요"})
 ];
+
+function bulkProduct(category, item){
+  return {
+    id: category + "-" + item[0], name:item[1], unit:item[2], price:item[3],
+    desc:item[4] || "", img:item[5], cats:[category], startsOnSale:true
+  };
+}
+
+var BULK_VEGETABLES = [
+  ["onion","양파","15kg · 국내산 A급",23800,"","onion"],
+  ["cabbage-green","양배추","1망",7900],
+  ["garlic","깐마늘","1kg",9900],
+  ["carrot","세척당근","10kg 1박스 · 중국산",7900],
+  ["scallion","대파","1관",7900,"","daepa"],
+  ["lettuce","양상추","12수 1박스",15000,"","lettuce"],
+  ["leaf-lettuce","상추","4kg",19800,"","sangchu"],
+  ["cabbage","배추","1망 · 55사이즈 중품",5000,"","cabbage"],
+  ["bell-pepper","피망","1kg",9900],
+  ["hot-pepper","청양고추","1kg",7500,"","cheongyang"],
+  ["crunch-pepper","아삭이고추","1kg",8000],
+  ["enoki","팽이버섯","1박스",9900],
+  ["potato-l","감자","20kg · 대",20000,"","potato"],
+  ["potato-xl","감자","20kg · 왕특",36000,"","potato"],
+  ["potato-xxl","감자","20kg · 왕왕",38000,"","potato"],
+  ["cucumber","백오이","100개입 1박스",90000],
+  ["chapchapi","찹찹이","1kg",13000],
+  ["sweet-potato","고구마","10kg · 튀김용",25000],
+  ["eggplant","가지","1박스",20000],
+  ["squash","애호박","20개입 1박스 · 특",20000,"","aehobak"],
+  ["oyster-mushroom","느타리버섯","2kg",9900],
+  ["baby-cabbage","알배기","1박스 · 상",15000],
+  ["chicory","치커리","1박스",9900],
+  ["garlic-stem","수입마늘쫑","1단 · 중국산",3000],
+  ["ground-garlic","간마늘","1kg",8500],
+  ["ground-ginger","간생강","1kg",11000],
+  ["curly-sprouts","곱슬이","1박스",3500],
+  ["soy-sprouts","일자콩나물","1박스",3500],
+  ["mung-sprouts","숙주","1박스",5500],
+  ["tofu","강릉심해순두부","1kg 식자재용 · 1박스",18000]
+];
+
+var BULK_FRUITS = [
+  ["lemon","레몬","50개입",25000],
+  ["grapefruit","자몽","25개입",37500],
+  ["banana","바나나","12/14발 1박스 · 필리핀/베트남산",14000,"","banana"],
+  ["pineapple","골드파인애플","6수 1박스",43000,"","pineapple"],
+  ["pineapple-b","골드파인애플","7~9수 · B급",18000,"","pineapple"],
+  ["apple-3","안동 사과","20kg · 상 3번",40000,"","apple"],
+  ["apple-56","안동 사과","20kg · 특 5~6번",70000,"","apple"],
+  ["persimmon-6","단감","10kg · 6다이",20000,"","persimmon"],
+  ["persimmon-5","단감","10kg · 5다이",25000,"","persimmon"],
+  ["tomato-23","완숙 토마토","5kg · 2~3번",6900,"시기상 A급이 아닙니다","tomato"],
+  ["tomato-1","완숙 토마토","5kg · 1번",15000,"시기상 A급이 아닙니다","tomato"],
+  ["kiwi","골드키위","5kg · 국내산",20000,"조금 익은 상품","kiwi"],
+  ["bansee-m","반시","5kg · M",8500,"","persimmon"],
+  ["bansee-s","반시","5kg · S",7000,"","persimmon"]
+];
+
+BULK_VEGETABLES.forEach(function(item){ PRODUCTS.push(bulkProduct("bulk-veg", item)); });
+BULK_FRUITS.forEach(function(item){ PRODUCTS.push(bulkProduct("bulk-fruit", item)); });
 
 var CATS = [
   {key:"all", label:"전체", title:"오늘 입고 상품"},
   {key:"deal", label:"🔥 오늘특가", title:"오늘의 특가"},
   {key:"fruit", label:"🍓 과일", title:"과일"},
   {key:"veg", label:"🥦 채소", title:"신선 채소"},
-  {key:"egg", label:"🥚 계란", title:"계란"}
+  {key:"egg", label:"🥚 계란", title:"계란"},
+  {key:"bulk-veg", label:"식자재 채소", title:"식자재 채소 · 원주 시내 배달 5만 원 이상", startsOnSale:true},
+  {key:"bulk-fruit", label:"식자재 과일", title:"식자재 과일 · 원주 시내 배달 10만 원 이상", startsOnSale:true}
 ];

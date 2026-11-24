@@ -95,9 +95,8 @@ function pushStockPatch(patch){
 }
 function pullCatalog(){
   if (!sbOn()) return Promise.resolve();
-  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
-    var v = rows && rows[0] && rows[0].value;
-    if (!v || !v.items) return;
+  return corePullCatalogValue().then(function(v){
+    if (!v) return;
     var local = catalogDoc();
     if (Number(v.updatedAt || 0) <= Number(local.updatedAt || 0)) return;
     writeCatalogDoc(v);
@@ -289,11 +288,7 @@ function stockOf(p){
   if (typeof p.stock === "number") return p.stock;
   return null;
 }
-function isSold(p){
-  if (ov(p.id).soldout) return true;
-  var s = stockOf(p);
-  return s !== null && s <= 0;
-}
+function isSold(p){ return !productAvailable(p) || coreIsSold(p, stockOf); }
 function commentOf(p){ var c = ov(p.id).comment; return c ? String(c).trim() : ""; }
 /* ── 과일 등급 (사장님이 고친 등급이 있으면 그걸 우선) ── */
 function gradeOf(p, oi){
@@ -309,7 +304,8 @@ function stockBadgeHtml(p){
   if (isSold(p)) return "";
   var s = stockOf(p);
   if (s === null || s > 5) return "";
-  return '<span class="stockb' + (s <= 2 ? '' : ' soon') + '">오늘 ' + s + unitWord(p) + ' 남음</span>';
+  var unit = unitWord(p);
+  return '<span class="stockb' + (s <= 2 ? '' : ' soon') + '">오늘 ' + s + unit + ' 남음</span>';
 }
 
 /* ── 낮 12시 마감 (한국 시간 Asia/Seoul 기준, 기기 시간대와 무관) ── */
@@ -547,12 +543,51 @@ function applyRecent(){
 function count(){ var n=0; for (var i=0;i<state.cart.length;i++) n += state.cart[i].qty; return n; }
 function subtotal(){ var s=0; for (var i=0;i<state.cart.length;i++) s += linePrice(state.cart[i]) * state.cart[i].qty; return s; }
 function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state.zone]; }
-function remaining(){ var z=zoneInfo(); return Math.max(0, z.min - subtotal()); }
-function meetMin(){ return subtotal() >= zoneInfo().min; }
-function todayStr(){
-  var d = new Date();
-  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+var STRAWBERRY_ADDON_MIN = 15000;
+
+function deliveryRequirements(){
+  var totals = {}, hasBox = false, otherTotal = 0, total = 0;
+  state.cart.forEach(function(line){
+    var p = byId(line.pid), amount = linePrice(line) * line.qty;
+    total += amount;
+    if (p.id === STRAWBERRY_BOX) hasBox = true;
+    else otherTotal += amount;
+    var category = p.cats[0];
+    if (WHOLESALE_MIN[category]) totals[category] = (totals[category] || 0) + amount;
+  });
+  var strawberryGap = hasBox ? Math.max(0, STRAWBERRY_ADDON_MIN - otherTotal) : 0;
+  var bulkGap = 0, notes = [];
+  if (strawberryGap) notes.push("특가 딸기 배달은 다른 상품을 15,000원 이상 함께 주문해 주세요. 다른 상품 " + money(strawberryGap) + "원 더 담아 주세요.");
+  Object.keys(totals).forEach(function(category){
+    var min = WHOLESALE_MIN[category];
+    var gap = Math.max(0, min - totals[category]);
+    bulkGap += gap;
+    if (gap) notes.push((category === "bulk-veg" ? "식자재 채소" : "식자재 과일") + " 배달은 해당 상품 " + money(min) + "원 이상부터 가능해요. " + money(gap) + "원 더 담아 주세요.");
+  });
+  return {
+    strawberryGap: strawberryGap,
+    cityOnly: state.zone !== "city" && Object.keys(totals).length > 0,
+    gap: Math.max(0, zoneInfo().min - total, strawberryGap, bulkGap),
+    notes: notes
+  };
 }
+
+function remaining(){ return state.mode === "pickup" ? 0 : deliveryRequirements().gap; }
+function meetMin(){
+  if (state.mode === "pickup") return true;
+  var req = deliveryRequirements();
+  return !req.cityOnly && req.gap === 0;
+}
+function minOrderHtml(){
+  if (meetMin()) return "";
+  var z = zoneInfo(), req = deliveryRequirements();
+  var title = req.cityOnly ? "식자재는 원주 시내권만 배달돼요" : z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
+  var notes = req.notes.length ? req.notes : [money(z.min) + "원부터 배달돼요."];
+  return '<div class="mincard"><b>' + title + '</b><p>' + notes.join("<br>") + '</p>'
+    + (req.cityOnly ? '<button data-zone="city">원주 시내권으로 변경하기</button>' : '')
+    + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
+}
+function todayStr(){ return koreanDateKey(); }
 function couponUsedToday(){ return state.couponDate === todayStr(); }
 /* 15,000원까지 남은 금액 */
 function couponGap(){ return Math.max(0, PICKUP_MIN - subtotal()); }
@@ -576,16 +611,18 @@ function pickupDiscount(){
    eventBase() = 100원 이벤트 상품을 뺀 일반 상품 합계 (= 장바구니 합계)
    eventReady() = 배달 주문 + 3만 원 이상 (주문당 1송이 · 포장에는 적용 안 함) */
 function eventBase(){ return subtotal(); }
-function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase()); }
+function eventActive(){ var date = todayStr(); return date >= OPEN_EVENT.from && date <= OPEN_EVENT.to; }
+function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase(), deliveryRequirements().strawberryGap); }
 function bananaUsedToday(){ return state.bananaDate === todayStr(); }
 function markBananaUsed(){ state.bananaDate = todayStr(); save(); }
-function eventReady(){ return state.mode === "delivery" && state.cart.length > 0 && eventBase() >= OPEN_EVENT.min && !bananaUsedToday(); }
+function eventReady(){ return eventActive() && state.mode === "delivery" && state.cart.length > 0 && eventGap() === 0 && !bananaUsedToday(); }
 /* 바나나 100원 상태: off(포장) / used(오늘 사용) / empty(빈 장바구니) / need(금액 부족) / ready(담을 수 있음) / on(담음) */
 function bananaState(){
+  if (!eventActive()) return "ended";
   if (state.mode !== "delivery") return "off";
   if (bananaUsedToday()) return "used";
   if (!state.cart.length) return "empty";
-  if (eventBase() < OPEN_EVENT.min) return "need";
+  if (eventGap() > 0) return "need";
   return state.banana ? "on" : "ready";
 }
 function bananaPay(){ return (state.banana && eventReady()) ? OPEN_EVENT.price : 0; }
@@ -599,7 +636,7 @@ function syncBanana(quiet){
         ? "🍌 바나나 100원은 배달 주문에만 적용돼서 장바구니에서 뺐어요"
         : (bananaUsedToday()
             ? "오늘 이미 사용한 이벤트예요 · 바나나 100원은 내일 다시 담을 수 있어요"
-            : "3만 원 아래로 줄어서 바나나 100원 이벤트가 풀렸어요"));
+            : "배달 행사 조건이 충족되지 않아 100원 바나나를 뺐어요"));
     }
     return true;
   }
@@ -631,7 +668,7 @@ function load(){
     if (raw) {
       var d = JSON.parse(raw);
       if (d && Array.isArray(d.cart)) {
-        state.cart = d.cart.filter(function(l){ return byId(l.pid) && l.qty > 0 && l.oi >= 0; });
+        state.cart = d.cart.filter(function(l){ var p = byId(l.pid); return p && l.qty > 0 && orderableOption(p, l.oi); });
       }
       if (d && d.mode === "pickup") state.mode = "pickup";
       else if (d && d.zone && ZONES[d.zone]) { state.mode = "delivery"; state.zone = d.zone; }
@@ -671,6 +708,8 @@ function logout(){
    6. 배달 / 포장 탭 · 안내 배너
    ──────────────────────────────────────────────── */
 function renderMode(){
+  var eventBanner = $("#openEventBanner");
+  if (eventBanner) eventBanner.hidden = !eventActive();
   $$("#modeTabs button").forEach(function(b){
     var on = b.getAttribute("data-mode") === state.mode;
     b.classList.toggle("on", on);
@@ -716,9 +755,10 @@ function renderMode(){
    7. 카테고리 · 메뉴 목록
    ──────────────────────────────────────────────── */
 function matches(p){
+  if (!productAvailable(p)) return false;
   if (state.filter !== "all" && p.cats.indexOf(state.filter) < 0) return false;
   var q = state.q.trim().toLowerCase();
-  if (!q) return true;
+  if (!q) return state.filter !== "all" || !WHOLESALE_MIN[p.cats[0]];
   var hay = p.name + " " + p.unit + " " + (p.origin||"") + " " + (p.desc||"") + " " + (p.tags||[]).join(" ");
   return hay.toLowerCase().indexOf(q) > -1;
 }
@@ -731,6 +771,7 @@ function renderCats(){
   var h = "";
   for (var i=0;i<CATS.length;i++){
     var c = CATS[i];
+    if (!productAvailable(c)) continue;
     h += '<button data-cat="' + c.key + '"' + (state.filter===c.key ? ' class="on"' : '') + '>' + c.label + '</button>';
   }
   $("#catIn").innerHTML = h;
@@ -755,7 +796,7 @@ function rowHtml(p){
   var bs = (p.badges || []).slice(0, 2);
   for (var i=0;i<bs.length;i++) badges += '<span class="bdg ' + bs[i][1] + '">' + bs[i][0] + '</span>';
   var meta = (p.origin ? esc(p.origin) + " · " : "") + esc(p.unit);
-  if (p.opts) meta += " · 옵션 " + p.opts.length + "가지";
+  if (p.opts) meta += " · 옵션 " + p.opts.filter(productAvailable).length + "가지";
   var price = p.opts
     ? money(basePrice(p)) + '원<span class="from">부터</span>'
     : money(priceOf(p, 0)) + '원';
@@ -765,6 +806,7 @@ function rowHtml(p){
     +   (badges ? '<div class="mbadges">' + badges + '</div>' : '')
     +   '<h3>' + esc(p.name) + '</h3>'
     +   '<p class="mdesc">' + meta + '</p>'
+    +   ((p.id === STRAWBERRY_BOX || WHOLESALE_MIN[p.cats[0]]) && p.desc ? '<p class="mdesc">' + esc(p.desc) + '</p>' : '')
     +   '<div class="mprice">' + price + stockBadgeHtml(p) + '</div>'
     +   (sold ? '' : (p.tip ? '<p class="tip">💡 ' + esc(p.tip) + '</p>' : ''))
     +   (cmt ? '<div class="cmt">💬 사장님 · ' + esc(cmt) + '</div>' : '')
@@ -799,7 +841,7 @@ function renderMenu(){
    행사(cats:deal) 품목을 사진·가격이 크게 보이는 카드로 먼저 보여 준다.
    검색 중이거나 다른 카테고리를 골랐을 때는 메뉴 목록에 집중하도록 숨긴다. */
 function dealProducts(){
-  return PRODUCTS.filter(function(p){ return (p.cats || []).indexOf("deal") > -1; });
+  return PRODUCTS.filter(function(p){ return productAvailable(p) && p.cats.indexOf("deal") > -1; });
 }
 function dealCardHtml(p){
   var q = qtyOf(p.id);
@@ -838,6 +880,12 @@ function add(pid, oi, qty){
   if (!p) return;
   oi = oi || 0;
   qty = qty || 1;
+  if (!orderableOption(p, oi) || isSold(p)){ toast("지금은 담을 수 없는 상품이에요"); return; }
+  var stockIssue = stockLimitIssue(p, qty);
+  if (stockIssue){
+    toast(stockIssue);
+    return;
+  }
   var found = null;
   for (var i=0;i<state.cart.length;i++){
     if (state.cart[i].pid === pid && state.cart[i].oi === oi){ found = state.cart[i]; break; }
@@ -853,6 +901,11 @@ function setQty(key, delta){
   for (var i=0;i<state.cart.length;i++){
     var l = state.cart[i];
     if (lineKey(l) === key){
+      var stockIssue = delta > 0 && stockLimitIssue(byId(l.pid), delta);
+      if (stockIssue){
+        toast(stockIssue);
+        return;
+      }
       l.qty += delta;
       if (l.qty <= 0) state.cart.splice(i,1);
       break;
@@ -923,9 +976,23 @@ function cartRowHtml(l){
     +   '</div>'
     + '</div></div>';
 }
-function hasSold(){
-  for (var i=0;i<state.cart.length;i++){ var p = byId(state.cart[i].pid); if (p && isSold(p)) return p; }
-  return null;
+function orderableOption(p, oi){
+  return productAvailable(p) && (p.opts ? !!p.opts[oi] && productAvailable(p.opts[oi]) : oi === 0);
+}
+function stockLimitIssue(p, extra){
+  var stock = stockOf(p);
+  if (stock === null || qtyOf(p.id) + extra <= stock) return "";
+  var unit = unitWord(p);
+  return p.name + "은 " + stock + unit + " 남았어요 · 수량을 줄여 주세요";
+}
+function cartStockIssue(){
+  for (var i=0;i<state.cart.length;i++){
+    var line = state.cart[i], p = byId(line.pid);
+    if (!orderableOption(p, line.oi) || isSold(p)) return p.name + " 판매 종료 또는 품절 · 장바구니에서 빼 주세요";
+    var issue = stockLimitIssue(p, 0);
+    if (issue) return issue;
+  }
+  return "";
 }
 /* ── 사진 접수 (v5) ── */
 var CLAIM_REASONS = ["상해서 왔어요", "눌리거나 터졌어요", "덜 익었어요", "너무 익었어요", "크기가 달라요", "수량이 달라요"];
@@ -1044,7 +1111,8 @@ function benefitChip(text, cls){ return '<span class="bf-s ' + cls + '">' + text
 function benefitsCardHtml(){
   var bst = bananaState(), cst = couponState();
   var bTxt, bCls, bSub = "배달 전용 · 일반 상품 3만 원 이상 · 하루 1회 · 주문당 1송이";
-  if (bst === "used"){ bTxt = "오늘 사용 완료"; bCls = "used"; bSub += " · 내일 다시 쓸 수 있어요"; }
+  if (bst === "ended"){ bTxt = "행사 기간 외"; bCls = "off"; }
+  else if (bst === "used"){ bTxt = "오늘 사용 완료"; bCls = "used"; bSub += " · 내일 다시 쓸 수 있어요"; }
   else if (bst === "off"){ bTxt = "배달 주문에만"; bCls = "off"; }
   else if (bst === "need"){ bTxt = money(eventGap()) + "원 더"; bCls = "need"; bSub += " · " + money(eventGap()) + "원 남았어요"; }
   else if (bst === "on"){ bTxt = "적용됨"; bCls = "on"; }
@@ -1070,7 +1138,7 @@ function benefitsCardHtml(){
 }
 /* ── 오픈 기념 이벤트 카드 (장바구니·주문서 공용) ── */
 function bananaEventHtml(){
-  if (!state.cart.length) return "";
+  if (!state.cart.length || !eventActive()) return "";
   var bst = bananaState();
   /* 오늘 이미 써서 다음 주문부터는 담을 수 없다 */
   if (bst === "used"){
@@ -1102,6 +1170,7 @@ function bananaEventHtml(){
     + '<span class="bc-ck" aria-hidden="true">' + (on ? "✓" : "") + '</span></button>';
 }
 function toggleBanana(){
+  if (!eventActive()) return;
   if (state.mode !== "delivery"){
     toast(OPEN_EVENT.offNote);
     return;
@@ -1111,7 +1180,7 @@ function toggleBanana(){
     return;
   }
   if (!eventReady()){
-    toast("3만 원 이상 담으면 바나나 1송이를 100원에 추가할 수 있어요 (" + money(eventGap()) + "원 남음)");
+    toast("행사 바나나를 담으려면 다른 상품 " + money(eventGap()) + "원을 더 담아 주세요");
     return;
   }
   state.banana = !state.banana;
@@ -1158,12 +1227,9 @@ function renderCart(){
   h += bananaEventHtml();
   h += couponCardHtml();
   h += benefitsCardHtml();
-  if (state.mode === "delivery" && remaining() > 0){
-    var z = zoneInfo();
-    h += '<div class="mincard"><b>' + z.short + ' 배달까지 ' + money(remaining()) + '원 남았어요</b>'
-      + '<p>' + money(z.min) + '원부터 배달돼요. 포장은 최소주문 없이, 15,000원 넘으면 1,000원 쿠폰!</p>'
-      + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
-    h += fillCardHtml();
+  if (!meetMin()){
+    h += minOrderHtml();
+    if (!deliveryRequirements().cityOnly && !deliveryRequirements().notes.length) h += fillCardHtml();
   }
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
@@ -1171,13 +1237,12 @@ function renderCart(){
   h += '<p class="note">포장 1,000원 할인 쿠폰은 15,000원 이상 주문에 하루 1회만 적용됩니다.</p>';
   body.innerHTML = h;
 
-  var re = remaining(), soldP = hasSold();
-  if (soldP){
+  var issue = cartStockIssue();
+  if (issue || !meetMin()){
     btn.disabled = true;
-    btn.textContent = soldP.name + " 품절 · 장바구니에서 빼 주세요";
-  } else if (state.mode !== "pickup" && re > 0){
-    btn.disabled = true;
-    btn.textContent = money(re) + "원 더 담으면 배달돼요";
+    btn.textContent = issue || (deliveryRequirements().cityOnly
+      ? "식자재는 원주 시내권만 배달돼요"
+      : money(remaining()) + "원 더 담으면 배달돼요");
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1204,6 +1269,7 @@ function renderOpt(){
   h += '<div class="opts">';
   for (var i=0;i<p.opts.length;i++){
     var op = p.opts[i];
+    if (!productAvailable(op)) continue;
     h += '<button class="obtn' + (i===o.oi ? ' on' : '') + '" data-oi="' + i + '" role="radio" aria-checked="' + (i===o.oi) + '">'
       + '<span class="rad"></span>'
       + '<span class="ol">' + esc(op.label) + gradeChipHtml(p, i, true) + (op.sub ? '<span class="os">' + esc(op.sub) + '</span>' : '') + '</span>'
@@ -1503,7 +1569,7 @@ function reorderLast(){
   var items = [];
   for (var i=0;i<o.items.length;i++){
     var it = o.items[i], p = byId(it.pid);
-    if (!p || isSold(p)) continue;
+    if (!p || isSold(p) || !orderableOption(p, it.oi || 0)) continue;
     items.push({pid: it.pid, oi: it.oi || 0, qty: it.qty});
   }
   if (!items.length){ toast("지난번 상품이 지금은 품절이에요"); return; }
@@ -1572,9 +1638,7 @@ function renderCheckout(){
   if (state.mode === "delivery"){
     h += zoneChipsHtml();
     if (deliveryClosed()) h += deliveryClosedNote(true);
-    if (remaining() > 0) h += '<div class="mincard" style="margin:12px 0 0"><b>' + z.short + ' 배달까지 ' + money(remaining()) + '원 남았어요</b>'
-      + '<p>' + money(z.min) + '원부터 배달돼요. 포장은 최소주문 없이, 15,000원 넘으면 1,000원 쿠폰!</p>'
-      + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
+    h += minOrderHtml();
     h += '<div class="field" id="fAddr" style="margin-top:12px"><label for="ckAddr">배달 주소</label>'
       + '<input id="ckAddr" value="' + esc(f.addr) + '" placeholder="예: 단구동 ○○아파트 101동 1001호" autocomplete="street-address">'
       + '<span class="err">배달 주소를 입력해 주세요</span></div>';
@@ -1640,15 +1704,21 @@ function renderCheckout(){
   updatePayBtn();
 }
 
+var checkingStock = false;
+
 function updatePayBtn(){
   var btn = $("#payBtn");
-  var re = remaining(), soldP = hasSold();
-  if (soldP){
+  if (checkingStock){
     btn.disabled = true;
-    btn.textContent = soldP.name + " 품절 · 장바구니에서 빼 주세요";
-  } else if (state.cart.length && state.mode === "delivery" && re > 0){
+    btn.textContent = "딸기 재고 확인 중…";
+    return;
+  }
+  var issue = cartStockIssue();
+  if (issue || !meetMin()){
     btn.disabled = true;
-    btn.textContent = money(re) + "원 더 담으면 배달돼요";
+    btn.textContent = issue || (deliveryRequirements().cityOnly
+      ? "식자재는 원주 시내권만 배달돼요"
+      : money(remaining()) + "원 더 담으면 배달돼요");
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1686,10 +1756,12 @@ function bindCheckout(){
   if (lo) lo.addEventListener("click", logout);
 }
 
-function pay(){
+async function pay(){
+  if (checkingStock || state.view !== "checkout") return;
   if (!state.cart.length){ toast("장바구니가 비어 있어요"); return; }
   var f = state.form;
-  if (hasSold()){ toast(hasSold().name + "은(는) 품절이에요. 장바구니에서 빼 주세요"); return; }
+  var issue = cartStockIssue();
+  if (issue){ toast(issue); return; }
   var bad = false;
   if (!f.name.trim()){ $("#fName").classList.add("bad"); bad = true; }
   var digits = f.phone.replace(/[^0-9]/g, "");
@@ -1701,11 +1773,34 @@ function pay(){
     return;
   }
 
-  if (state.mode === "delivery" && remaining() > 0){
-    toast(money(remaining()) + "원 더 담으면 배달돼요 · 포장은 " + PICKUP_HOURS + "에 가능!");
+  if (!meetMin()){
+    toast(deliveryRequirements().cityOnly ? "식자재는 원주 시내권만 배달돼요" : money(remaining()) + "원 더 담으면 배달돼요");
     return;
   }
   if (!f.agree){ toast("주문 내용 확인에 동의해 주세요"); $("#agreeBox").classList.add("bad"); return; }
+
+  if (qtyOf(STRAWBERRY_BOX) && sbOn()){
+    var checkoutSnapshot = JSON.stringify([state.cart, state.mode, state.zone, f, payable()]);
+    checkingStock = true;
+    updatePayBtn();
+    try {
+      var doc = await corePullCatalogValue();
+      if (doc && Number(doc.updatedAt || 0) >= Number(catalogDoc().updatedAt || 0)) writeCatalogDoc(doc);
+    } catch(e){
+      toast("딸기 재고를 확인할 수 없어요. 잠시 뒤 다시 시도해 주세요");
+      return;
+    } finally {
+      checkingStock = false;
+      if (state.view === "checkout") updatePayBtn();
+    }
+    if (state.view !== "checkout") return;
+    issue = cartStockIssue();
+    if (issue || !meetMin() || checkoutSnapshot !== JSON.stringify([state.cart, state.mode, state.zone, f, payable()])){
+      renderCheckout();
+      toast(issue || "주문 내용이 바뀌었어요. 확인하고 다시 주문해 주세요");
+      return;
+    }
+  }
 
   /* 제출 방어 — 어떤 경로로 값이 들어와도 무통장입금으로만 접수한다 */
   f.pay = PAY_ONLY;
@@ -1718,48 +1813,46 @@ function pay(){
   var usedCoupon = pickupDiscount() > 0;
   var usedBanana = bananaPay() > 0;      /* 이 주문에 100원 바나나를 썼으면 오늘은 더 못 쓴다 */
   var slot = curSlot();
-  setTimeout(function(){
-    var now = new Date();
-    var no = "HN" + now.getFullYear() + String(now.getMonth()+1).padStart(2,"0") + String(now.getDate()).padStart(2,"0")
-           + "-" + String(Math.floor(Math.random()*9000)+1000);
-    var items = state.cart.map(function(l){
-      var p = byId(l.pid), o = optOf(p, l.oi);
-      return {pid: p.id, oi: l.oi, qty: l.qty, name: p.name, unit: p.unit,
-              opt: o ? o.label : "", price: linePrice(l), sum: linePrice(l) * l.qty};
-    });
-    /* 오픈 기념 이벤트 바나나 — 일반 상품과 따로 한 줄로 기록 (재고 8송이 제한과 분리) */
-    if (state.banana && eventReady()){
-      items.push({pid: OPEN_EVENT.pid, oi: 0, qty: 1, name: OPEN_EVENT.name, unit: "",
-                  opt: "", price: OPEN_EVENT.price, sum: OPEN_EVENT.price, event: true});
-    }
-    var ord = {
-      no: no, at: now.getTime(),
-      time: String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0"),
-      mode: state.mode, zone: state.mode === "delivery" ? state.zone : "pickup",
-      slot: slot.key, slotLabel: slot.label, eta: slot.eta,
-      sub: subtotal(), disc: pickupDiscount(), pay: payName, total: payable(),
-      eventBanana: bananaPay() > 0, eventName: (bananaPay() > 0 ? OPEN_EVENT.name : ""),
-      name: f.name, phone: f.phone,
-      depositor: String(f.depositor || "").trim(),
-      receiptType: (f.receiptType || "none"),
-      receiptNo: (f.receiptType && f.receiptType !== "none") ? String(f.receiptNo || "").trim() : "",
-      receiptLabel: receiptLabel(f.receiptType),
-      addr: state.mode === "delivery" ? f.addr : STORE.addr,
-      memo: f.memo || "", items: items,
-      status: "received", statusAt: now.getTime()
-    };
-    state.order = ord;
-    state.orders.unshift(ord);
-    rememberMyOrder(ord.no);
-    saveOrders();
-    pushOrder(ord);          /* 공용 DB에 올려 사장님 화면에 바로 보이게 */
-    pushNewOrderAlert(ord);  /* 사장님 폰으로 새 주문 푸시 (실패해도 주문은 그대로) */
-    saveRecent();
-    decStock();
-    if (usedCoupon) markCouponUsed();
-    if (usedBanana) markBananaUsed();
-    showDone(ord);
-  }, 700);
+  var now = new Date();
+  var no = "HN" + now.getFullYear() + String(now.getMonth()+1).padStart(2,"0") + String(now.getDate()).padStart(2,"0")
+         + "-" + String(Math.floor(Math.random()*9000)+1000);
+  var items = state.cart.map(function(l){
+    var p = byId(l.pid), o = optOf(p, l.oi);
+    return {pid: p.id, oi: l.oi, qty: l.qty, name: p.name, unit: p.unit,
+            opt: o ? o.label : "", price: linePrice(l), sum: linePrice(l) * l.qty};
+  });
+  /* 오픈 기념 이벤트 바나나 — 일반 상품과 따로 한 줄로 기록 (재고 8송이 제한과 분리) */
+  if (state.banana && eventReady()){
+    items.push({pid: OPEN_EVENT.pid, oi: 0, qty: 1, name: OPEN_EVENT.name, unit: "",
+                opt: "", price: OPEN_EVENT.price, sum: OPEN_EVENT.price, event: true});
+  }
+  var ord = {
+    no: no, at: now.getTime(),
+    time: String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0"),
+    mode: state.mode, zone: state.mode === "delivery" ? state.zone : "pickup",
+    slot: slot.key, slotLabel: slot.label, eta: slot.eta,
+    sub: subtotal(), disc: pickupDiscount(), pay: payName, total: payable(),
+    eventBanana: bananaPay() > 0, eventName: (bananaPay() > 0 ? OPEN_EVENT.name : ""),
+    name: f.name, phone: f.phone,
+    depositor: String(f.depositor || "").trim(),
+    receiptType: (f.receiptType || "none"),
+    receiptNo: (f.receiptType && f.receiptType !== "none") ? String(f.receiptNo || "").trim() : "",
+    receiptLabel: receiptLabel(f.receiptType),
+    addr: state.mode === "delivery" ? f.addr : STORE.addr,
+    memo: f.memo || "", items: items,
+    status: "received", statusAt: now.getTime()
+  };
+  state.order = ord;
+  state.orders.unshift(ord);
+  rememberMyOrder(ord.no);
+  saveOrders();
+  pushOrder(ord);          /* 공용 DB에 올려 사장님 화면에 바로 보이게 */
+  pushNewOrderAlert(ord);  /* 사장님 폰으로 새 주문 푸시 (실패해도 주문은 그대로) */
+  saveRecent();
+  decStock();
+  if (usedCoupon) markCouponUsed();
+  if (usedBanana) markBananaUsed();
+  showDone(ord);
 }
 /* 주문된 만큼 남은 수량 줄이기 — 사장님 페이지에 바로 반영 */
 function decStock(){
@@ -2185,9 +2278,16 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasSaleStarted = saleStarted(), wasEventActive = eventActive();
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow();
+    if (saleStarted() !== wasSaleStarted || eventActive() !== wasEventActive){
+      wasSaleStarted = saleStarted();
+      wasEventActive = eventActive();
+      syncBanana(true);
+      renderCats();
+      renderAll();
+    }
     if (c === wasClosed && po === wasPickupOpen) return;
     wasClosed = c; wasPickupOpen = po;
     renderAll();

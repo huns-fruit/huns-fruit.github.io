@@ -69,7 +69,7 @@ function $$(sel, root){ return Array.prototype.slice.call((root || document).que
 function money(n){ return Number(n).toLocaleString("ko-KR"); }
 function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 function byId(id){ for (var i=0;i<PRODUCTS.length;i++){ if (PRODUCTS[i].id===id) return PRODUCTS[i]; } return null; }
-function thumb(p){ return '<img src="' + IMG[p.img] + '" alt="' + esc(p.name) + '" loading="lazy" decoding="async">'; }
+function thumb(p){ if (!IMG[p.img]) return ""; return '<img src="' + IMG[p.img] + '" alt="' + esc(p.name) + '" loading="lazy" decoding="async">'; }
 function toast(msg){
   var t = $("#toast");
   t.textContent = msg;
@@ -142,7 +142,7 @@ function ov(pid){ return state.catalog[pid] || {}; }
 
 function unitWord(p){
   var u = String(p.unit || "");
-  var ws = ["팩","단","봉지","판","송이","알","박스","통","망"];
+  var ws = ["박스","팩","단","봉지","판","송이","알","통","망"];
   for (var i=0;i<ws.length;i++) if (u.indexOf(ws[i]) > -1) return ws[i];
   return "개";
 }
@@ -222,4 +222,19 @@ function splitDeletedOrders(list, present, asked, opts){
     } else kept.push(o);
   });
   return {kept: kept, dead: dead, orphans: orphans};
+}
+
+/* Shared catalog read; callers retain their own state and rendering rules. */
+function corePullCatalogValue(){
+  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
+    var v = rows && rows[0] && rows[0].value;
+    return v && v.items ? v : undefined;
+  });
+}
+
+/* Keep each screen’s stock calculation while sharing the sold-out rule. */
+function coreIsSold(p, getStock){
+  if (ov(p.id).soldout) return true;
+  var s = getStock(p);
+  return s !== null && s <= 0;
 }

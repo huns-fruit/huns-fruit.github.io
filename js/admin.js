@@ -18,9 +18,8 @@ function pushCatalog(doc){
 }
 function pullCatalog(){
   if (!sbOn()) return Promise.resolve();
-  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
-    var v = rows && rows[0] && rows[0].value;
-    if (!v || !v.items) return;
+  return corePullCatalogValue().then(function(v){
+    if (!v) return;
     var local = readCatalog();
     if (Number(v.updatedAt || 0) <= Number(local.updatedAt || 0)) return;
     v.updatedAt = Number(v.updatedAt || Date.now());
@@ -686,11 +685,7 @@ function effStock(p){
   if (typeof p.stock === "number") return p.stock;
   return null;
 }
-function isSold(p){
-  if (ov(p.id).soldout) return true;
-  var s = effStock(p);
-  return s !== null && s <= 0;
-}
+function isSold(p){ return coreIsSold(p, effStock); }
 
 
 
@@ -1154,10 +1149,11 @@ function prodRowHtml(p){
 /* 입/블러·클릭 이벤트 중에 innerHTML 을 갈아치우면 방금 누른 버튼이 사라지므로 한 박자 늦춘다 */
 function deferRender(){ setTimeout(renderProducts, 0); }
 function renderProducts(){
-  var list = PRODUCTS.filter(prodMatches);
+  var visible = PRODUCTS.filter(function(p){ return !p.endsOnSale || productAvailable(p); });
+  var list = visible.filter(prodMatches);
   $("#prodList").innerHTML = list.map(prodRowHtml).join("");
   var soldN = 0, lowN = 0;
-  PRODUCTS.forEach(function(p){
+  visible.forEach(function(p){
     if (isSold(p)) soldN++;
     else { var s = effStock(p); if (s !== null && s <= 5) lowN++; }
   });
