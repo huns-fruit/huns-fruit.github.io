@@ -445,6 +445,25 @@ body.hasbar{padding-bottom:84px}
 .reorder:active{background:var(--mint-l)}
 .reorder.cart{margin:14px 0 0;width:100%;height:46px;font-size:14.5px}
 
+/* ── 식자재 바로가기 배너 (2026-11-26) ── */
+.bulkban{display:flex;align-items:center;gap:11px;width:calc(100% - 32px);margin:12px 16px 0;padding:12px 14px;border-radius:12px;
+  border:2px solid var(--mint);background:linear-gradient(90deg,var(--mint-l),#fff);text-align:left;letter-spacing:-.3px}
+.bulkban:active{background:var(--mint-l)}
+.bulkban .bb-ico{flex:0 0 auto;font-size:24px;line-height:1}
+.bulkban .bb-t{flex:1 1 auto;min-width:0}
+.bulkban .bb-t b{display:block;font-size:16px;font-weight:800;color:#0B7C77;line-height:1.32}
+.bulkban .bb-t small{display:block;margin-top:2px;font-size:12.5px;font-weight:700;color:#2C7F7A}
+.bulkban .bb-go{flex:0 0 auto;font-size:14px;font-weight:800;color:#fff;background:var(--mint-d);border-radius:9px;padding:9px 11px;white-space:nowrap}
+.menus .mhead{scroll-margin-top:62px}   /* 고정 카테고리 탭에 제목이 가리지 않게 */
+
+/* ── 공동현관 비밀번호 (주문서 · 배달만) ── */
+.gatebox{display:flex;gap:8px;align-items:stretch}
+.gatebox input{flex:1 1 auto;min-width:0}
+.gatechip{flex:0 0 auto;min-width:74px;padding:6px 10px;border-radius:10px;border:1.5px solid #DDE1E4;background:#fff;color:var(--ink2);font-size:13px;font-weight:800;line-height:1.25;letter-spacing:-.2px}
+.gatechip small{display:block;font-size:11px;font-weight:700;color:var(--ink3)}
+.gatechip.on{border-color:var(--mint);background:var(--mint-l);color:var(--mint-d)}
+.gatechip.on small{color:var(--mint-d)}
+
 /* ── v4 · 주문 진행 단계 ────────────────── */
 .dtrack{display:flex;align-items:center;gap:6px;margin:16px 16px 12px}
 .dtrack span{flex:1 1 0;text-align:center;font-size:12.5px;font-weight:800;color:#9AA0A6;background:var(--bg);border-radius:8px;padding:9px 0;letter-spacing:-.2px}

@@ -801,6 +801,23 @@ function hasEventBanana(o){
 function isEventItem(it){
   return !!it && (it.event || String(it.pid || "") === "banana-event" || String(it.name || "").indexOf("[오픈특가]") > -1);
 }
+/* ── 단골(재주문) 배지 ─────────────────────────
+   같은 전화번호(숫자만 비교)로 2번 이상 주문한 손님. 취소된 주문은 빼고 센다.
+   카드마다 전체 목록을 훑지 않도록 주문 목록을 그릴 때 한 번만 세어 둔다. */
+var regularCounts = {};
+function countRegulars(list){
+  var m = {};
+  (list || []).forEach(function(o){
+    if (!o || oStatus(o) === "canceled") return;
+    var ph = String(o.phone || "").replace(/\D/g, "");
+    if (ph) m[ph] = (m[ph] || 0) + 1;
+  });
+  return m;
+}
+function regularBadgeHtml(o){
+  var n = regularCounts[String((o && o.phone) || "").replace(/\D/g, "")] || 0;
+  return n >= 2 ? '<span class="obadge reg" title="같은 번호로 ' + n + '번 주문한 단골 고객">⭐ 단골 ' + n + '회</span>' : "";
+}
 function orderCardHtml(o){
   var st = oStatus(o);
   var h = '<article class="ocard st-' + st + (alarm.pending[o.no] ? ' isnew' : '') + '" data-no="' + esc(o.no) + '">';
@@ -810,10 +827,11 @@ function orderCardHtml(o){
     +  '<span class="ost ' + st + '">' + statusLabel(o) + '</span></div>';
   h += '<div class="orows">'
     + '<div class="orow"><span>받는 시간</span><b class="slot">' + esc(slotText(o)) + '</b></div>'
-    + '<div class="orow"><span>고객</span><b>' + esc(o.name) + ' · ' + esc(o.phone) + '</b></div>'
+    + '<div class="orow"><span>고객</span><b>' + esc(o.name) + ' · ' + esc(o.phone) + '</b>' + regularBadgeHtml(o) + '</div>'
     + payFlagsHtml(o)
     + (o.mode === "delivery"
         ? '<div class="orow"><span>배달 주소</span><b>' + esc(o.addr || "—") + '</b></div>'
+          + (o.gate ? '<div class="orow gate"><span>🔑 현관 비번</span><b>' + esc(o.gate) + '</b></div>' : '')
         : '<div class="orow"><span>수령 장소</span><b>매장(단구로 398 상가동 101호)</b></div>')
     + '</div>';
   h += '<div class="oitems">';
@@ -863,6 +881,7 @@ function orderCardHtml(o){
 }
 function renderOrders(){
   var today = todayOrders();
+  regularCounts = countRegulars(state.orders);
   $("#tabOrderNum").textContent = today.length;
   var sales = 0, wait = 0;
   today.forEach(function(o){

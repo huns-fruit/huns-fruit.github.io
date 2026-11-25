@@ -207,7 +207,7 @@ var state = {
   filter: "all",
   q: "",
   view: "shop",      // shop | cart | checkout | done
-  form: {name:"", phone:"", addr:"", memo:"", pay:"bank", agree:false, depositor:"", receiptType:"none", receiptNo:""},
+  form: {name:"", phone:"", addr:"", gate:"", memo:"", pay:"bank", agree:false, depositor:"", receiptType:"none", receiptNo:""},
   order: null,
   opt: null,         // {pid, oi, qty}
   couponDate: null,  // 포장 할인 마지막 사용일 (YYYY-MM-DD)
@@ -238,6 +238,8 @@ var SLOT_DEF = {
 var FILL_IDS = ["perilla", "aehobak", "daepa", "cheongyang"];
 /* 원터치 요청사항 칩 */
 var REQ_DELIVERY = ["문 앞에 두고 문자 주세요", "벨 누르지 마세요", "도착 전 전화 주세요", "아이스박스/그늘 보관"];
+/* 공동현관 비밀번호 — ‘없음’ 칩이 넣는 값 */
+var GATE_NONE = "없음";
 /* 포장 요청사항 칩 — 영업 전에는 '오늘 오후', 접수 마감 뒤에는 '내일 오전'으로 */
 function reqPickupChips(){
   return pickupOpenNow()
@@ -536,7 +538,7 @@ function loadRecent(){
 function saveRecent(){
   var f = state.form;
   if (!f.name || !f.phone) return;
-  state.recent = {name: f.name, phone: f.phone, addr: f.addr || "", at: Date.now()};
+  state.recent = {name: f.name, phone: f.phone, addr: f.addr || "", gate: f.gate || "", at: Date.now()};
   try { localStorage.setItem(CUSTOMER_KEY, JSON.stringify(state.recent)); } catch(e){}
 }
 function applyRecent(){
@@ -544,6 +546,7 @@ function applyRecent(){
   if (!state.form.name)  state.form.name  = r.name  || "";
   if (!state.form.phone) state.form.phone = r.phone || "";
   if (!state.form.addr)  state.form.addr  = r.addr  || "";
+  if (!state.form.gate)  state.form.gate  = r.gate  || "";
 }
 
 /* ────────────────────────────────────────────────
@@ -1708,6 +1711,11 @@ function renderCheckout(){
     h += '<div class="field" id="fAddr" style="margin-top:12px"><label for="ckAddr">배달 주소</label>'
       + '<input id="ckAddr" value="' + esc(f.addr) + '" placeholder="예: 단구동 ○○아파트 101동 1001호" autocomplete="street-address">'
       + '<span class="err">배달 주소를 입력해 주세요</span></div>';
+    /* 공동현관 비밀번호 — 비워 두어도 주문되고, ‘없음’ 칩으로 한 번에 채운다 */
+    h += '<div class="field" id="fGate" style="margin-top:10px"><label for="ckGate">공동현관 비밀번호 (선택)</label>'
+      + '<div class="gatebox"><input id="ckGate" value="' + esc(f.gate) + '" placeholder="예: #1234* (공동현관 없으면 ‘없음’)" autocomplete="off">'
+      + '<button type="button" class="gatechip' + (f.gate === GATE_NONE ? ' on' : '') + '" data-gate="none" aria-pressed="' + (f.gate === GATE_NONE ? 'true' : 'false') + '">없음<small>주택·1층</small></button></div>'
+      + '<span class="fhint">배달 기사님이 현관을 열 수 있게 적어 주세요 · 비워 두어도 주문돼요</span></div>';
   } else {
     h += (pickupSameDayOrderable() ? '' : pickupClosedNote(true))
       + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
@@ -1806,6 +1814,17 @@ function bindCheckout(){
   bindBankCopy();
   bindInput("ckPhone", "phone", "fPhone");
   bindInput("ckAddr", "addr", "fAddr");
+  /* 공동현관 비밀번호 — 직접 고치면 ‘없음’ 칩 선택은 풀린다 */
+  var gt = $("#ckGate");
+  if (gt) gt.addEventListener("input", function(){
+    f.gate = gt.value;
+    var gp = $("[data-gate='none']");
+    if (gp){
+      var on = f.gate === GATE_NONE;
+      gp.classList.toggle("on", on);
+      gp.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  });
   bindInput("ckMemo", "memo", "");
   bindInput("ckDepositor", "depositor", "");
   bindInput("ckRcptNo", "receiptNo", "");
@@ -1903,6 +1922,7 @@ async function pay(){
     receiptNo: (f.receiptType && f.receiptType !== "none") ? String(f.receiptNo || "").trim() : "",
     receiptLabel: receiptLabel(f.receiptType),
     addr: state.mode === "delivery" ? f.addr : STORE.addr,
+    gate: state.mode === "delivery" ? String(f.gate || "").trim() : "",
     memo: f.memo || "", items: items,
     status: "received", statusAt: now.getTime()
   };
@@ -2142,6 +2162,21 @@ function bind(){
     if (nb && nb.scrollIntoView){ try { nb.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); } catch(err){} }
   });
 
+  /* 식자재 바로가기 배너 — 식자재 채소로 바꾸고 상품 목록으로 내려간다 */
+  if ($("#bulkBan")) $("#bulkBan").addEventListener("click", function(){
+    state.filter = "bulk-veg";
+    state.q = "";
+    var qb = $("#q");
+    if (qb) qb.value = "";
+    if ($("#qClear")) $("#qClear").hidden = true;
+    renderCats(); renderDeals(); renderMenu();
+    var cb = $("#catIn [data-cat='bulk-veg']");
+    if (cb && cb.scrollIntoView){ try { cb.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); } catch(err){} }
+    var mh = $(".mhead"), mm = $("#menuList");
+    if (mh && mh.scrollIntoView){ try { mh.scrollIntoView({block:"start", behavior:"smooth"}); } catch(err){} }
+    else if (mm && mm.scrollIntoView) mm.scrollIntoView();
+  });
+
   /* 검색 */
   var q = $("#q"), t = null;
   q.addEventListener("input", function(){
@@ -2260,6 +2295,16 @@ function bind(){
   $("#payBtn").addEventListener("click", pay);
   $("#ckBody").addEventListener("click", function(e){
     if (e.target.closest("[data-banana]")){ toggleBanana(); return; }
+    var gateB = e.target.closest("[data-gate]");
+    if (gateB){
+      var gf = state.form, gi = $("#ckGate");
+      gf.gate = (gf.gate === GATE_NONE) ? "" : GATE_NONE;      /* 다시 누르면 지워진다 */
+      if (gi) gi.value = gf.gate;
+      var on = gf.gate === GATE_NONE;
+      gateB.classList.toggle("on", on);
+      gateB.setAttribute("aria-pressed", on ? "true" : "false");
+      return;
+    }
     var payB = e.target.closest("[data-pay]");
     if (payB){
       if (payB.getAttribute("data-pay") !== PAY_ONLY){
