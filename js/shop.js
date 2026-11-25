@@ -669,13 +669,23 @@ function save(){
     else localStorage.removeItem(BANANA_KEY);
   } catch(e){}
 }
+function currentCartLine(line){
+  var oi = line.oi || 0;
+  // Older carts and orders identify a strawberry pack by its option index.
+  if (line.pid === "strawberry") return {pid: STRAWBERRY_PACKS[oi], oi: 0, qty: line.qty};
+  return {pid: line.pid, oi: oi, qty: line.qty};
+}
+
 function load(){
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
       var d = JSON.parse(raw);
       if (d && Array.isArray(d.cart)) {
-        state.cart = d.cart.filter(function(l){ var p = byId(l.pid); return p && l.qty > 0 && orderableOption(p, l.oi); });
+        state.cart = d.cart.filter(Boolean).map(currentCartLine).filter(function(l){
+          var p = byId(l.pid);
+          return p && l.qty > 0 && orderableOption(p, l.oi);
+        });
       }
       if (d && d.mode === "pickup") state.mode = "pickup";
       else if (d && d.zone && ZONES[d.zone]) { state.mode = "delivery"; state.zone = d.zone; }
@@ -1575,9 +1585,9 @@ function reorderLast(){
   if (!o || !o.items || !o.items.length){ toast("지난 주문이 없어요"); return; }
   var items = [];
   for (var i=0;i<o.items.length;i++){
-    var it = o.items[i], p = byId(it.pid);
-    if (!p || isSold(p) || !orderableOption(p, it.oi || 0)) continue;
-    items.push({pid: it.pid, oi: it.oi || 0, qty: it.qty});
+    var line = currentCartLine(o.items[i]), p = byId(line.pid);
+    if (!p || isSold(p) || !orderableOption(p, line.oi)) continue;
+    items.push(line);
   }
   if (!items.length){ toast("지난번 상품이 지금은 품절이에요"); return; }
   state.cart = items;
@@ -1787,7 +1797,10 @@ async function pay(){
   }
   if (!f.agree){ toast("주문 내용 확인에 동의해 주세요"); $("#agreeBox").classList.add("bad"); return; }
 
-  if (qtyOf(STRAWBERRY_BOX) && sbOn()){
+  var hasStrawberries = state.cart.some(function(line){
+    return line.pid === STRAWBERRY_BOX || STRAWBERRY_PACKS.indexOf(line.pid) !== -1;
+  });
+  if (hasStrawberries && sbOn()){
     var checkoutSnapshot = JSON.stringify([state.cart, state.mode, state.zone, f, payable()]);
     checkingStock = true;
     updatePayBtn();
