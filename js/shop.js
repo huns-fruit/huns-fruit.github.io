@@ -489,10 +489,7 @@ function bindBankCopy(){
 function pushNewOrderAlert(ord){
   try {
     if (!ord || !window.fetch) return;
-    var yname = Number(ord.total || 0).toLocaleString("ko-KR");
-    var body = "새 주문! [" + (ord.mode === "pickup" ? "포장" : "배달") + "] · "
-             + (ord.name || "손님") + "님 · " + yname + "원"
-             + (ord.depositor ? " · 입금자명 " + ord.depositor : "");
+    var body = "새 주문이 접수됐어요. 사장님 페이지에서 확인해 주세요.";
     fetch(NTFY_URL, {
       method: "POST",
       headers: {
@@ -669,13 +666,20 @@ function save(){
     else localStorage.removeItem(BANANA_KEY);
   } catch(e){}
 }
+var LEGACY_STRAWBERRY_IDS = ["strawberry-4x5", "strawberry-3x5", "strawberry-3x4"];
+function migrateLegacyStrawberryLine(line){
+  if (!line || line.pid !== "strawberry") return line;
+  var oi = Number(line.oi || 0);
+  if (!Number.isInteger(oi) || oi < 0 || oi >= LEGACY_STRAWBERRY_IDS.length) return null;
+  return {pid:LEGACY_STRAWBERRY_IDS[oi], oi:0, qty:line.qty};
+}
 function load(){
   try {
     var raw = localStorage.getItem(KEY);
     if (raw) {
       var d = JSON.parse(raw);
       if (d && Array.isArray(d.cart)) {
-        state.cart = d.cart.filter(function(l){ var p = byId(l.pid); return p && l.qty > 0 && orderableOption(p, l.oi); });
+        state.cart = d.cart.map(migrateLegacyStrawberryLine).filter(function(l){ var p = l && byId(l.pid); return p && l.qty > 0 && orderableOption(p, l.oi); });
       }
       if (d && d.mode === "pickup") state.mode = "pickup";
       else if (d && d.zone && ZONES[d.zone]) { state.mode = "delivery"; state.zone = d.zone; }
@@ -1575,9 +1579,9 @@ function reorderLast(){
   if (!o || !o.items || !o.items.length){ toast("지난 주문이 없어요"); return; }
   var items = [];
   for (var i=0;i<o.items.length;i++){
-    var it = o.items[i], p = byId(it.pid);
-    if (!p || isSold(p) || !orderableOption(p, it.oi || 0)) continue;
-    items.push({pid: it.pid, oi: it.oi || 0, qty: it.qty});
+    var it = o.items[i], line = migrateLegacyStrawberryLine(it), p = line && byId(line.pid);
+    if (!p || isSold(p) || !orderableOption(p, line.oi)) continue;
+    items.push({pid: line.pid, oi: line.oi, qty: line.qty});
   }
   if (!items.length){ toast("지난번 상품이 지금은 품절이에요"); return; }
   state.cart = items;
