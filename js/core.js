@@ -36,6 +36,17 @@ var sbTimer = null;
 
 function isoAt(ts){ return new Date(ts || Date.now()).toISOString(); }
 
+/* 시각 값은 기기에서는 숫자(ms)로, DB 함수에서는 숫자 문자나 날짜 문자열로 올 수 있다.
+   한 곳에서 ms 로 맞춰 두면 화면에 NaN:NaN 이 찍히지 않는다. 읽을 수 없으면 0. */
+function tsMs(v){
+  if (typeof v === "number") return isFinite(v) ? v : 0;
+  var s = String(v == null ? "" : v).trim();
+  if (!s) return 0;
+  if (/^\d+$/.test(s)) return Number(s);
+  var t = new Date(s).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
 function sbOn(){
   return !!(window.fetch && window.JSON && /^https?:$/.test(location.protocol));
 }
@@ -152,11 +163,6 @@ function authLogoutCall(token){
     headers: { "apikey": SB_KEY, "Authorization": "Bearer " + token }
   });
 }
-
-function sbQuoted(list){
-  return list.map(function(s){ return '"' + String(s).replace(/"/g, '') + '"'; }).join(",");
-}
-
 
 /* ── 화면 도우미 ── */
 var toastTimer = null;

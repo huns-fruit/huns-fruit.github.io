@@ -603,7 +603,9 @@ function isToday(ts){
   return dayStr(new Date(ts)) === dayStr();
 }
 function hhmm(ts){
-  var d = new Date(ts);
+  var v = tsMs(ts);
+  if (!v) return "";          /* 읽을 수 없는 시각은 빈칸 — NaN:NaN 을 찍지 않는다 */
+  var d = new Date(v);
   return pad(d.getHours()) + ":" + pad(d.getMinutes());
 }
 function isYesterday(ts){
@@ -793,12 +795,7 @@ function hasEventBanana(o){
   if (!o) return false;
   if (o.eventBanana) return true;
   var its = o.items || [];
-  for (var i=0;i<its.length;i++){
-    var it = its[i];
-    if (it.event) return true;
-    if (String(it.pid || "") === "banana-event") return true;
-    if (String(it.name || "").indexOf("[오픈특가]") > -1) return true;
-  }
+  for (var i=0;i<its.length;i++) if (isEventItem(its[i])) return true;
   return false;
 }
 function isEventItem(it){
@@ -836,7 +833,7 @@ function orderCardHtml(o){
     + '<b class="tot">결제 ' + money(o.total) + '원</b></div>';
   if (st === "canceled"){
     h += '<div class="ocx"><b>❌ 취소된 주문</b>'
-      + '<span>사유: ' + esc(o.cancelReason || "기타") + (o.cancelAt ? ' · ' + esc(hhmm(o.cancelAt)) : '') + '</span></div>';
+      + '<span>사유: ' + esc(o.cancelReason || "기타") + (hhmm(o.cancelAt) ? ' · ' + esc(hhmm(o.cancelAt)) : '') + '</span></div>';
   }
   var pick = o.mode === "pickup";
   var step3 = pick ? "ready" : "delivering";
@@ -900,31 +897,6 @@ function renderOrders(){
     return;
   }
   box.innerHTML = list.map(orderCardHtml).join("");
-}
-function seedOrder(){
-  var today = new Date();
-  var items = [
-    {pid:"strawberry", oi:0, qty:2, name:"딸기", unit:"1팩", opt:"4x5 · 1팩", price:7900, sum:15800},
-    {pid:"perilla", oi:0, qty:1, name:"깻잎", unit:"1봉지", opt:"", price:1500, sum:1500},
-    {pid:"daepa", oi:0, qty:1, name:"대파", unit:"1단", opt:"", price:2500, sum:2500}
-  ];
-  var sub = 19800;
-  var ord = {
-    no: "HN" + today.getFullYear() + pad(today.getMonth()+1) + pad(today.getDate()) + "-" + Math.floor(Math.random()*9000 + 1000),
-    at: Date.now(), time: hhmm(Date.now()),
-    mode: "pickup", zone: "pickup", slot: "soon30", slotLabel: "30분 뒤 바로 픽업", eta: "30분 뒤 픽업",
-    sub: sub, disc: 1000, pay: "카카오페이", total: sub - 1000,
-    name: "김단골", phone: "010-1234-5678", addr: STORE.name + " 단구점",
-    memo: "30분 뒤에 갈게요", items: items,
-    status: "received", statusAt: Date.now(), demo: true
-  };
-  var list = readOrders();
-  list.unshift(ord);
-  writeOrders(list);
-  pushOrder(ord);
-  renderOrders();
-  checkNewOrders(list);
-  toast("테스트 주문을 넣었어요");
 }
 function setStatus(no, next){
   if (next !== "received") markAck(no);   /* 상태를 바꾸면 새 주문 알림은 끝난 것 */
@@ -1036,7 +1008,7 @@ function claimCardHtml(c){
   if (c.photos && c.photos.length){
     h += '<div class="cphotos">';
     for (var i=0;i<c.photos.length;i++){
-      h += '<button data-photo="' + i + '" aria-label="사진 ' + (i+1) + ' 크게 보기"><img src="' + c.photos[i] + '" alt="접수 사진 ' + (i+1) + '"></button>';
+      h += '<button data-photo="' + i + '" aria-label="사진 ' + (i+1) + ' 크게 보기"><img src="' + esc(c.photos[i]) + '" alt="접수 사진 ' + (i+1) + '"></button>';
     }
     h += '</div>';
   } else {
@@ -1268,21 +1240,21 @@ function bind(){
     }
     var so = e.target.closest("[data-sold]");
     if (so){
-      var pid = so.getAttribute("data-sold");
-      var p = byId(pid);
-      var cur = isSold(p);
-      patchItem(pid, {soldout: cur ? undefined : true});
+      var soldPid = so.getAttribute("data-sold");
+      var soldP = byId(soldPid);
+      var cur = isSold(soldP);
+      patchItem(soldPid, {soldout: cur ? undefined : true});
       // 품절 해제 시 수량이 0이면 살 수 없으므로 1로 올려 준다
       if (cur){
         var doc = readCatalog();
-        var it = doc.items[pid] || {};
-        var stock = (typeof it.stock === "number") ? it.stock : (p && typeof p.stock === "number" ? p.stock : null);
+        var it = doc.items[soldPid] || {};
+        var stock = (typeof it.stock === "number") ? it.stock : (soldP && typeof soldP.stock === "number" ? soldP.stock : null);
         if (stock !== null && stock <= 0) it.stock = 1;
-        if (Object.keys(it).length) doc.items[pid] = it;
+        if (Object.keys(it).length) doc.items[soldPid] = it;
         writeCatalog(doc);
       }
       deferRender();
-      toast(cur ? (p ? p.name : "상품") + " 품절을 풀었어요" : (p ? p.name : "상품") + "을(를) 품절로 바꿨어요");
+      toast(cur ? (soldP ? soldP.name : "상품") + " 품절을 풀었어요" : (soldP ? soldP.name : "상품") + "을(를) 품절로 바꿨어요");
       return;
     }
   });

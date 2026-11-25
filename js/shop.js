@@ -98,7 +98,7 @@ function pullOrderStatus(){
     rows = rows || [];
     var byNo = {}, present = [];
     rows.forEach(function(r){
-      byNo[r.id] = { status: r.status, cancelReason: r.cancel_reason, cancelAt: r.cancel_at };
+      byNo[r.id] = { status: r.status, cancelReason: r.cancel_reason, cancelAt: tsMs(r.cancel_at) };
       present.push(r.id);
     });
     var changed = false;
@@ -113,7 +113,7 @@ function pullOrderStatus(){
       /* 사장님이 취소한 경우 사유도 같이 받아 온다 */
       if (oStatus(o) === "canceled"){
         if (r.cancelReason && r.cancelReason !== o.cancelReason){ o.cancelReason = r.cancelReason; changed = true; }
-        if (r.cancelAt && r.cancelAt !== o.cancelAt){ o.cancelAt = r.cancelAt; changed = true; }
+        if (r.cancelAt && r.cancelAt !== tsMs(o.cancelAt)){ o.cancelAt = r.cancelAt; changed = true; }
       } else if (o.cancelReason){
         clearCancelFields(o); changed = true;
       }
@@ -196,8 +196,6 @@ var PAYS = [
   {key:"kakaopay", label:"카카오페이", icon:"🟡", soon:true}
 ];
 
-var DAYS = ["일","월","화","수","목","금","토"];
-
 /* ────────────────────────────────────────────────
    2. 상태
    ──────────────────────────────────────────────── */
@@ -206,7 +204,6 @@ var state = {
   cart: [],          // [{pid, oi, qty}]
   mode: "delivery",  // delivery | pickup
   zone: "city",      // city | outer
-  user: null,        // {provider, name}
   filter: "all",
   q: "",
   view: "shop",      // shop | cart | checkout | done
@@ -247,7 +244,7 @@ function reqPickupChips(){
     ? ["30분 뒤에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]
     : (pickupSameDayOrderable()
         ? ["오늘 오후에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]
-        : ["내일 오전에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]);
+        : [pickupDayWord() + " 오전에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]);
 }
 
 
@@ -267,6 +264,17 @@ function priceOf(p, oi){
   return (typeof o.price === "number" && o.price > 0) ? o.price : p.price;
 }
 function basePrice(p){ return priceOf(p, 0); }
+/* '부터' 가격 — 팔 수 있는 옵션 중 가장 싼 값 (옵션 1번이 항상 싼 것은 아니다) */
+function fromPrice(p){
+  if (!p.opts) return priceOf(p, 0);
+  var best = null;
+  for (var i=0;i<p.opts.length;i++){
+    if (!productAvailable(p.opts[i])) continue;
+    var v = priceOf(p, i);
+    if (best === null || v < best) best = v;
+  }
+  return best === null ? basePrice(p) : best;
+}
 function optOf(p, oi){ return p.opts ? p.opts[oi] : null; }
 function linePrice(l){ var p=byId(l.pid); return priceOf(p, l.oi); }
 function lineKey(l){ return l.pid + "|" + l.oi; }
@@ -308,12 +316,14 @@ function kstMin(){ var d = kstDate(); return d.getHours()*60 + d.getMinutes(); }
 function pad2(n){ return String(n).padStart(2,"0"); }
 function pickupSameDayOrderable(){ var m = kstMin(); return m >= PICKUP_ORDER_OPEN_H*60 && m < PICKUP_CLOSE_H*60; }
 function pickupOpenNow(){ var m = kstMin(); return m >= PICKUP_OPEN_H*60 && m < PICKUP_CLOSE_H*60; }
+/* 자정~08시 사이에는 '오늘 오전 9시'가 아직 남아 있다 — 픽업 안내에서 오늘/내일을 고른다 */
+function pickupDayWord(){ return kstMin() < PICKUP_ORDER_OPEN_H*60 ? "오늘" : "내일"; }
 /* 08:00부터 당일 픽업을 예약하고, 영업 전에는 오후 픽업만 보여 준다 */
 function pickupSlots(){
   var m = kstMin(), closeM = PICKUP_CLOSE_H*60, list = [];
   if (!pickupSameDayOrderable()){
-    return [{key:"tomorrow_am", label:"내일 오전 9시 이후 픽업",
-             sub:"포장 가능 시간 " + PICKUP_HOURS, eta:"내일 오전 9시 이후 픽업"}];
+    return [{key:"tomorrow_am", label:pickupDayWord() + " 오전 9시 이후 픽업",
+             sub:"포장 가능 시간 " + PICKUP_HOURS, eta:pickupDayWord() + " 오전 9시 이후 픽업"}];
   }
   if (!pickupOpenNow()){
     return [{key:"today_pm", label:"오늘 오후 픽업",
@@ -353,7 +363,7 @@ function deliveryClosedNote(pad){
 }
 /* 당일 픽업 주문 접수 시간(08:00~20:00) 밖일 때의 안내 */
 function pickupClosedText(){
-  return "오늘 픽업 주문은 " + PICKUP_ORDER_HOURS + " 접수돼요. 지금 주문하시면 내일 오전 9시 이후에 가져가실 수 있어요.";
+  return "오늘 픽업 주문은 " + PICKUP_ORDER_HOURS + " 접수돼요. 지금 주문하시면 " + pickupDayWord() + " 오전 9시 이후에 가져가실 수 있어요.";
 }
 function pickupClosedBannerHtml(){
   return '<div class="banner closed" id="pickupClosedBanner">'
@@ -434,7 +444,15 @@ function loadOrders(){
   if (mine.length) state.orders = state.orders.filter(function(o){ return mine.indexOf(o.no) > -1; });
 }
 function saveOrders(){
-  try { localStorage.setItem(ORDERS_KEY, JSON.stringify(state.orders)); } catch(e){}
+  try {
+    var all = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]");
+    all = Array.isArray(all) ? all : [];
+    /* 이 화면은 내 주문만 들고 있다 — 사장님이 같은 기기에서 받아 둔 다른 주문은 지우지 않고 그대로 남긴다 */
+    var mine = {};
+    state.orders.forEach(function(o){ if (o && o.no) mine[o.no] = 1; });
+    var others = all.filter(function(o){ return o && o.no && !mine[o.no]; });
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(state.orders.concat(others)));
+  } catch(e){}
 }
 function lastOrder(){ return state.orders.length ? state.orders[0] : null; }
 
@@ -705,7 +723,7 @@ function payable(){ return Math.max(0, subtotal() - pickupDiscount() + bananaPay
 
 function save(){
   try {
-    localStorage.setItem(KEY, JSON.stringify({cart: state.cart, mode: state.mode, zone: state.zone, user: state.user, slots: state.slots, banana: !!state.banana}));
+    localStorage.setItem(KEY, JSON.stringify({cart: state.cart, mode: state.mode, zone: state.zone, slots: state.slots, banana: !!state.banana}));
     if (state.couponDate) localStorage.setItem(COUPON_KEY, JSON.stringify({date: state.couponDate}));
     else localStorage.removeItem(COUPON_KEY);
     if (state.bananaDate) localStorage.setItem(BANANA_KEY, JSON.stringify({date: state.bananaDate}));
@@ -729,7 +747,6 @@ function load(){
       }
       if (d && d.mode === "pickup") state.mode = "pickup";
       else if (d && d.zone && ZONES[d.zone]) { state.mode = "delivery"; state.zone = d.zone; }
-      if (d && d.user && d.user.provider) state.user = d.user;
       if (d && d.slots && typeof d.slots === "object") state.slots = d.slots;
       if (d && d.banana === true) state.banana = true;
     }
@@ -742,24 +759,6 @@ function load(){
 function markCouponUsed(){ state.couponDate = todayStr(); save(); }
 
 
-
-/* ────────────────────────────────────────────────
-   5. 간편 로그인
-   ──────────────────────────────────────────────── */
-function login(provider){
-  state.user = {provider: provider, name: "김단골"};
-  if (!state.form.name) state.form.name = "김단골";
-  if (!state.form.phone) state.form.phone = "010-1234-5678";
-  save();
-  toast(provider === "naver" ? "네이버로 로그인했어요" : "카카오로 로그인했어요");
-  if (state.view === "checkout") renderCheckout();
-}
-function logout(){
-  state.user = null;
-  save();
-  if (state.view === "checkout") renderCheckout();
-  toast("로그아웃했어요");
-}
 
 /* ────────────────────────────────────────────────
    6. 배달 / 포장 탭 · 안내 배너
@@ -855,7 +854,7 @@ function rowHtml(p){
   var meta = (p.origin ? esc(p.origin) + " · " : "") + esc(p.unit);
   if (p.opts) meta += " · 옵션 " + p.opts.filter(productAvailable).length + "가지";
   var price = p.opts
-    ? money(basePrice(p)) + '원<span class="from">부터</span>'
+    ? money(fromPrice(p)) + '원<span class="from">부터</span>'
     : money(priceOf(p, 0)) + '원';
   var cmt = commentOf(p);
   return '<article class="mrow' + (sold ? ' sold' : '') + '" data-id="' + p.id + '">'
@@ -903,7 +902,7 @@ function dealProducts(){
 function dealCardHtml(p){
   var q = qtyOf(p.id);
   var price = p.opts
-    ? money(basePrice(p)) + '원<span class="from">부터</span>'
+    ? money(fromPrice(p)) + '원<span class="from">부터</span>'
     : money(priceOf(p, 0)) + '원';
   var flag = (p.badges && p.badges[0]) ? p.badges[0][0] : "행사";
   return '<article class="dcard" data-id="' + p.id + '">'
@@ -1335,7 +1334,7 @@ function openOpt(pid){
 }
 function renderOpt(){
   var o = state.opt; if (!o) return;
-  var p = byId(o.pid), cur = p.opts[o.oi];
+  var p = byId(o.pid);
   $("#optTitle").textContent = p.name;
   var h = '<div class="optprod"><div class="th">' + thumb(p) + '</div>'
     + '<div><p class="og">' + esc(p.origin || "") + '</p><h4>' + esc(p.name) + '</h4>'
@@ -1347,15 +1346,15 @@ function renderOpt(){
     h += '<button class="obtn' + (i===o.oi ? ' on' : '') + '" data-oi="' + i + '" role="radio" aria-checked="' + (i===o.oi) + '">'
       + '<span class="rad"></span>'
       + '<span class="ol">' + esc(op.label) + gradeChipHtml(p, i, true) + (op.sub ? '<span class="os">' + esc(op.sub) + '</span>' : '') + '</span>'
-      + '<span class="op">' + money(op.price) + '원</span></button>';
+      + '<span class="op">' + money(priceOf(p, i)) + '원</span></button>';
   }
   h += '</div>';
-  h += '<div class="qrow"><span class="ql">수량</span><span class="qu">' + money(cur.price) + '원 / 개</span>'
+  h += '<div class="qrow"><span class="ql">수량</span><span class="qu">' + money(priceOf(p, o.oi)) + '원 / 개</span>'
     + '<span class="qstp"><button id="optMinus" aria-label="수량 줄이기">−</button><b id="optQty">' + o.qty + '</b>'
     + '<button id="optPlus" aria-label="수량 늘리기">+</button></span></div>';
   if (p.warn) h += '<div class="warn">' + esc(p.warn) + '</div>';
   $("#optBody").innerHTML = h;
-  $("#optAdd").textContent = money(cur.price * o.qty) + "원 담기";
+  $("#optAdd").textContent = money(priceOf(p, o.oi) * o.qty) + "원 담기";
   $("#optAdd").disabled = false;
 }
 function openSheet(){
@@ -1522,7 +1521,7 @@ function renderClaim(){
   }
   var ph = '<div class="cphotos">';
   for (i=0;i<claim.photos.length;i++){
-    ph += '<div class="cph"><img src="' + claim.photos[i] + '" alt="접수 사진 ' + (i+1) + '">'
+    ph += '<div class="cph"><img src="' + esc(claim.photos[i]) + '" alt="접수 사진 ' + (i+1) + '">'
       + '<button class="x" data-photo-del="' + i + '" aria-label="사진 빼기">✕</button></div>';
   }
   if (claim.photos.length < 3) ph += '<button class="cadd" data-photo-add><span class="ci">📷</span>사진 올리기</button>';
@@ -1581,8 +1580,9 @@ function sendClaim(){
   if (!String(claim.name).trim()){ toast("이름을 적어 주세요"); return; }
   if (String(claim.phone).replace(/[^0-9]/g, "").length < 9){ toast("연락처를 확인해 주세요"); return; }
   var now = new Date();
+  /* 4자리 난수는 하루 주문이 쌓이면 같은 번호가 나올 수 있어(같은 번호는 DB에 못 들어간다) 6자리로 넓혔다 */
   var no = "CL" + now.getFullYear() + String(now.getMonth()+1).padStart(2,"0") + String(now.getDate()).padStart(2,"0")
-         + "-" + String(Math.floor(Math.random()*9000)+1000);
+         + "-" + String(Math.floor(Math.random()*900000)+100000);
   var rec = {
     no: no, at: now.getTime(),
     time: String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0"),
@@ -1679,15 +1679,6 @@ function renderOrderStrip(){
 /* ────────────────────────────────────────────────
    13. 주문서
    ──────────────────────────────────────────────── */
-function loginBoxHtml(){
-  /* 로그인 없이 주문한다 (개인정보처리방침 1항) — 주문자 정보는 아래에 직접 적는다 */
-  if (state.user && state.user.name){
-    var lab = state.user.provider === "naver" ? "🟢 네이버" : "🟡 카카오";
-    return '<div class="who">' + lab + ' ' + esc(state.user.name) + '님으로 주문 중'
-      + '<button id="ckLogout">로그아웃</button></div>';
-  }
-  return '';
-}
 function renderCheckout(){
   if (state.view !== "checkout") return;
   var f = state.form, z = zoneInfo();
@@ -1695,7 +1686,6 @@ function renderCheckout(){
   if (f.pay !== PAY_ONLY) f.pay = PAY_ONLY;
 
   var h = '<section class="csec"><h3><span class="sn">1</span>주문자 정보</h3>'
-    + loginBoxHtml()
     + '<div class="field" id="fName"><label for="ckName">이름</label>'
     +   '<input id="ckName" value="' + esc(f.name) + '" placeholder="홍길동" autocomplete="name">'
     +   '<span class="err">이름을 입력해 주세요</span></div>'
@@ -1722,7 +1712,7 @@ function renderCheckout(){
     h += (pickupSameDayOrderable() ? '' : pickupClosedNote(true))
       + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
       + (pickupOpenNow() ? ' · 준비되면 바로 가져가실 수 있어요.'
-          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>';
+          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 ' + pickupDayWord() + ' 오전 9시 이후 픽업이에요.')) + '</div>';
   }
   h += appleDealNoticeHtml();
   h += slotBoxHtml();
@@ -1828,8 +1818,6 @@ function bindCheckout(){
   });
   var ck = $("#agreeCk");
   if (ck) ck.addEventListener("change", function(){ f.agree = ck.checked; });
-  var lo = $("#ckLogout");
-  if (lo) lo.addEventListener("click", logout);
 }
 
 async function pay(){
@@ -1891,7 +1879,7 @@ async function pay(){
   var slot = curSlot();
   var now = new Date();
   var no = "HN" + now.getFullYear() + String(now.getMonth()+1).padStart(2,"0") + String(now.getDate()).padStart(2,"0")
-         + "-" + String(Math.floor(Math.random()*9000)+1000);
+         + "-" + String(Math.floor(Math.random()*900000)+100000);
   var items = state.cart.map(function(l){
     var p = byId(l.pid), o = optOf(p, l.oi);
     return {pid: p.id, oi: l.oi, qty: l.qty, name: p.name, unit: p.unit,
@@ -2123,7 +2111,7 @@ function bind(){
         ? (mbDropped ? "포장으로 바꿨어요 · 바나나 100원은 배달 전용이라 뺐어요"
                      : (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + PICKUP_HOURS + " 안에서 준비해 드려요"
                                         : (pickupSameDayOrderable() ? "포장 주문으로 바꿨어요 · 오늘 오후 픽업을 예약할 수 있어요"
-                                                                    : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 내일 오전 9시 이후 픽업으로 예약돼요")))
+                                                                    : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 " + pickupDayWord() + " 오전 9시 이후 픽업으로 예약돼요")))
         : "배달 주문으로 바꿨어요");
       return;
     }
@@ -2272,8 +2260,6 @@ function bind(){
   $("#payBtn").addEventListener("click", pay);
   $("#ckBody").addEventListener("click", function(e){
     if (e.target.closest("[data-banana]")){ toggleBanana(); return; }
-    var lg = e.target.closest("[data-login]");
-    if (lg){ login(lg.getAttribute("data-login")); return; }
     var payB = e.target.closest("[data-pay]");
     if (payB){
       if (payB.getAttribute("data-pay") !== PAY_ONLY){
