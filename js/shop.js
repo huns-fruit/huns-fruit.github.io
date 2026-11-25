@@ -234,8 +234,8 @@ var SLOT_DEF = {
     {key:"dayafter_am",  label:"모레 오전 배송", sub:"하루 여유 있게", eta:"모레 오전 배송"}
   ]
 };
-/* 무료배달 채우기 추천 (1,500~3,000원 채소) */
-var FILL_IDS = ["perilla", "aehobak", "daepa", "cheongyang"];
+/* 무료배달 채우기 추천 (1,000~2,000원대 채소) */
+var FILL_IDS = ["aehobak", "daepa", "cheongyang", "perilla", "kkwari", "mu", "lettuce", "sangchu", "chamsari-sprouts-300g", "chamsari-mung-sprouts-400g"];
 /* 원터치 요청사항 칩 */
 var REQ_DELIVERY = ["문 앞에 두고 문자 주세요", "벨 누르지 마세요", "도착 전 전화 주세요", "아이스박스/그늘 보관"];
 /* 공동현관 비밀번호 — ‘없음’ 칩이 넣는 값 */
@@ -1129,20 +1129,22 @@ function renderGradeGuide(){
 }
 /* 무료배달까지 남은 금액을 채울 채소 추천 */
 function fillCardHtml(){
-  var gap = remaining(), h = '';
-  h += '<div class="fillcard" id="fillCard"><b>1,500원~3,000원 채소 하나 더 담고 무료배달 받기</b>'
-    +  '<p>무료배달까지 ' + money(gap) + '원 남았아요 · 아래에서 바로 담아 보세요</p><div class="filllist">';
-  for (var i=0;i<FILL_IDS.length;i++){
+  if (state.mode !== "delivery") return "";
+  var req = deliveryRequirements();
+  if (!req.baseGap || req.cityOnly) return "";
+  var h = "", n = 0;
+  for (var i=0;i<FILL_IDS.length && n<3;i++){
     var p = byId(FILL_IDS[i]);
-    if (!p) continue;
-    var sold = isSold(p), inCart = qtyOf(p.id) > 0;
-    h += '<div class="fitem"><div class="fi">' + thumb(p) + '</div>'
-      +  '<div class="fn"><b>' + esc(p.name) + '</b><small>' + esc(p.unit) + ' · ' + money(priceOf(p, 0)) + '원'
-      +  (sold ? ' · 품절' : (inCart ? ' · ' + qtyOf(p.id) + '개 담김' : '')) + '</small></div>'
-      +  (sold ? '<button class="sold" disabled>품절</button>'
-              : '<button data-fillbtn="' + p.id + '">+ 담기</button>') + '</div>';
+    if (!p || p.opts || isSold(p) || !orderableOption(p, 0) || qtyOf(p.id) || stockLimitIssue(p, 1) || maxQtyIssue(p, 1)) continue;
+    var price = priceOf(p, 0);
+    if (price < 1000 || price >= 3000) continue;
+    h += '<button type="button" data-fillbtn="' + esc(p.id) + '">+ ' + esc(p.name) + ' ' + money(price) + '원</button>';
+    n++;
   }
-  return h + '</div></div>';
+  if (!n) return "";
+  return '<div class="fillcard" id="fillCard"><b>무료배달 금액 채우기</b>'
+    + '<p>배달 최소금액까지 ' + money(req.baseGap) + '원 남았어요 · 바로 담아 보세요</p><div class="filllist">'
+    + h + '</div></div>';
 }
 /* 최근 주문자 · 배송지 */
 function maskAddr(a){ if (!a) return ""; return a.length > 24 ? a.slice(0, 24) + "…" : a; }
@@ -1307,7 +1309,7 @@ function renderCart(){
   h += benefitsCardHtml();
   if (!meetMin()){
     h += minOrderHtml();
-    if (!deliveryRequirements().cityOnly && !deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
+    h += fillCardHtml();
   }
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
@@ -1622,6 +1624,7 @@ function showView(v){
 function openCart(){ showView("cart"); renderCart(); window.scrollTo(0,0); }
 function goCheckout(){
   if (!state.cart.length) return;
+  applyRecent();
   showView("checkout");
   renderCheckout();
   window.scrollTo(0,0);
@@ -2076,7 +2079,7 @@ function showDone(ord){
   $("#doneOk").addEventListener("click", function(){
     state.cart = [];
     state.banana = false;
-    state.form = {name: state.form.name, phone: state.form.phone, addr: "", memo: "", pay: state.form.pay, agree: false,
+    state.form = {name: state.form.name, phone: state.form.phone, addr: "", gate: "", memo: "", pay: state.form.pay, agree: false,
                   depositor: "", receiptType: "none", receiptNo: ""};
     save();
     renderAll();
