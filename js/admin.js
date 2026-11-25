@@ -1373,4 +1373,130 @@ function init(){
   syncStart();          /* 손님 화면·공용 DB와 5초마다 맞추기 */
 }
 
-init();
+/* ── 로그인 게이트 ─────────────────────────────────
+   admin.html 은 로그인 전에는 아무 데이터도 부르지 않는다.
+   로그인에 성공해야 init() 이 돌아 주문·접수·상품을 불러온다.
+   아이디·비밀번호는 코드에 없다 — 화면에서 입력받은 값을 Supabase 에 확인한다. */
+var booted = false;
+var authTimer = null;
+var authBusy = false;
+
+function setLoginMsg(msg){
+  var el = $("#loginMsg");
+  if (!el) return;
+  el.textContent = msg || "";
+  el.hidden = !msg;
+}
+function lockLogin(msg){
+  document.body.classList.add("locked");
+  var g = $("#loginGate");
+  if (g) g.hidden = false;
+  setLoginMsg(msg || "");
+  var em = $("#loginEmail");
+  if (em) setTimeout(function(){ try { em.focus(); } catch(e){} }, 150);
+}
+function unlockApp(){
+  document.body.classList.remove("locked");
+  var g = $("#loginGate");
+  if (g) g.hidden = true;
+}
+function startAuthTimer(){
+  if (authTimer) clearInterval(authTimer);
+  authTimer = setInterval(function(){
+    var s = authReadSession();
+    if (s && authExpired(s)) renewAuth().catch(function(){});
+  }, 60000);
+}
+/* refresh_token 으로 조용히 세션 갱신 */
+function renewAuth(){
+  var s = authReadSession();
+  if (!s || !s.refresh_token) return Promise.reject(new Error("no session"));
+  return authRefresh(s.refresh_token).then(function(d){
+    var ns = authPack(d);
+    if (!ns.email) ns.email = s.email;
+    authSaveSession(ns, authIsKept());
+    sbSetToken(ns.access_token);
+    return ns;
+  });
+}
+/* 401·403 — 한 번만 갱신해 보고, 안 되면 로그인 화면으로 돌아간다 */
+function onAuthFail(){
+  if (authBusy) return;
+  authBusy = true;
+  renewAuth().then(function(){
+    authBusy = false;
+    if (booted && sbOn()) syncPullAll();
+  }).catch(function(){
+    authBusy = false;
+    endAuth("로그인이 만료됐어요. 다시 로그인해 주세요.");
+  });
+}
+/* 세션 지우고 로그인 화면으로 (새로고침으로 남은 화면·타이머까지 정리) */
+function endAuth(msg){
+  var s = authReadSession();
+  var tok = s && s.access_token;
+  if (authTimer){ clearInterval(authTimer); authTimer = null; }
+  authClearSession();
+  sbSetToken(null); sbAuthFail = null;
+  try { stopPoll(); } catch(e){}
+  try { stopRinging(); stopVoice(); flashTitle(false); } catch(e){}
+  try { if (msg) sessionStorage.setItem(AUTH_MSG_KEY, msg); } catch(e){}
+  var done = tok ? authLogoutCall(tok).catch(function(){}) : Promise.resolve();
+  Promise.race([done, new Promise(function(r){ setTimeout(r, 1200); })]).then(function(){
+    location.reload();
+  });
+}
+function doLogin(){
+  var em = $("#loginEmail"), pw = $("#loginPassword"), keep = $("#loginKeep"), btn = $("#loginBtn");
+  var email = ((em && em.value) || "").trim();
+  var pass = (pw && pw.value) || "";
+  if (!email || !pass){ setLoginMsg("아이디(이메일)와 비밀번호를 넣어 주세요"); return; }
+  setLoginMsg("");
+  if (btn){ btn.disabled = true; btn.textContent = "로그인 중…"; }
+  authLogin(email, pass).then(function(d){
+    var s = authPack(d);
+    authSaveSession(s, !!(keep && keep.checked));
+    sbSetToken(s.access_token);
+    sbAuthFail = onAuthFail;
+    if (pw) pw.value = "";
+    if (btn){ btn.disabled = false; btn.textContent = "로그인"; }
+    startAuthTimer();
+    bootAdmin();
+    toast("로그인했어요");
+  }).catch(function(err){
+    if (btn){ btn.disabled = false; btn.textContent = "로그인"; }
+    setLoginMsg((err && err.message) ? err.message : "로그인하지 못했어요");
+  });
+}
+function bootAdmin(){
+  if (booted) return;
+  booted = true;
+  unlockApp();
+  init();
+}
+function bindAuth(){
+  var f = $("#loginForm");
+  if (f) f.addEventListener("submit", function(e){ e.preventDefault(); doLogin(); });
+  var lb = $("#logoutBtn");
+  if (lb) lb.addEventListener("click", function(){ endAuth("로그아웃했어요."); });
+}
+function authStart(){
+  bindAuth();
+  var notice = "";
+  try { notice = sessionStorage.getItem(AUTH_MSG_KEY) || ""; sessionStorage.removeItem(AUTH_MSG_KEY); } catch(e){}
+  var s = authReadSession();
+  if (!s){ lockLogin(notice); return; }
+  sbSetToken(s.access_token);
+  sbAuthFail = onAuthFail;
+  if (!authExpired(s)){ bootAdmin(); startAuthTimer(); return; }
+  /* access_token 이 만료됐어도 refresh_token 이 남아 있으면 조용히 갱신하고 바로 들어간다 */
+  renewAuth().then(function(){
+    bootAdmin(); startAuthTimer();
+  }).catch(function(){
+    authClearSession(); sbSetToken(null); sbAuthFail = null;
+    lockLogin("로그인 시간이 만료됐어요. 다시 로그인해 주세요.");
+  });
+}
+
+/* 로그인 확인부터 시작 — 인증 전에는 init() 이 돌지 않는다 */
+authStart();

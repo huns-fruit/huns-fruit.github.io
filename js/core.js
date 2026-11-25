@@ -40,8 +40,13 @@ function sbOn(){
   return !!(window.fetch && window.JSON && /^https?:$/.test(location.protocol));
 }
 
+/* 로그인한 사장님의 access_token — 없으면 anon 키(손님 화면)로 동작한다 */
+var sbToken = null;
+var sbAuthFail = null;      /* 401·403 이 났을 때 부를 함수 (admin.js 가 연결) */
+function sbSetToken(t){ sbToken = t || null; }
+
 function sbHead(extra){
-  var h = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" };
+  var h = { "apikey": SB_KEY, "Authorization": "Bearer " + (sbToken || SB_KEY), "Content-Type": "application/json" };
   if (extra) for (var k in extra) h[k] = extra[k];
   return h;
 }
@@ -50,10 +55,101 @@ function sbCall(path, opt){
   opt = opt || {};
   opt.headers = sbHead(opt.headers);
   return fetch(SB_URL + "/rest/v1/" + path, opt).then(function(r){
-    if (!r.ok) throw new Error("supabase " + r.status);
+    if (!r.ok){
+      if ((r.status === 401 || r.status === 403) && sbAuthFail){ try { sbAuthFail(r.status); } catch(e){} }
+      var err = new Error("supabase " + r.status);
+      err.status = r.status;
+      throw err;
+    }
     if (r.status === 204) return null;
     var ct = r.headers.get("content-type") || "";
     return ct.indexOf("json") > -1 ? r.json() : null;
+  });
+}
+
+/* DB 함수(RPC) 호출 — 손님 화면은 로그인 없이 이것만 쓴다 */
+function sbRpc(fn, args){
+  return sbCall("rpc/" + fn, { method: "POST", body: JSON.stringify(args || {}) });
+}
+
+
+/* ── 사장님 로그인 (Supabase Auth) ─────────────────────────
+   아이디·비밀번호는 코드에 넣지 않는다. 화면에서 입력받아 Supabase 에 확인하고
+   받은 access_token 으로만 DB를 읽고 쓴다. 만료되면 refresh_token 으로 조용히 갱신한다. */
+var AUTH_KEY = "hoonie_retail_admin_auth_v1";     /* 로그인 유지(localStorage) · 아니면 sessionStorage */
+var AUTH_MSG_KEY = "hoonie_retail_admin_msg_v1";
+
+function authPack(d){
+  var now = Math.floor(Date.now() / 1000);
+  return {
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    expires_at: d.expires_at || (now + Number(d.expires_in || 3600)),
+    email: (d.user && d.user.email) || ""
+  };
+}
+function authReadSession(){
+  var raw = null;
+  try { raw = localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY); } catch(e){}
+  if (!raw) return null;
+  try {
+    var s = JSON.parse(raw);
+    return (s && s.access_token && s.refresh_token) ? s : null;
+  } catch(e){ return null; }
+}
+function authSaveSession(s, keep){
+  authClearSession();
+  try { (keep ? localStorage : sessionStorage).setItem(AUTH_KEY, JSON.stringify(s)); } catch(e){}
+}
+function authClearSession(){
+  try { localStorage.removeItem(AUTH_KEY); } catch(e){}
+  try { sessionStorage.removeItem(AUTH_KEY); } catch(e){}
+}
+function authIsKept(){
+  try { return !!localStorage.getItem(AUTH_KEY); } catch(e){ return false; }
+}
+/* 만료 1분 전부터는 먼저 갱신한다 */
+function authExpired(s){ return !s || !s.expires_at || (Number(s.expires_at) * 1000) - 60000 < Date.now(); }
+
+function authErrMsg(d, status){
+  var c = (d && (d.error_code || d.code)) || "";
+  var m = (d && (d.msg || d.message || d.error_description)) || "";
+  if (c === "invalid_credentials" || /invalid login credentials/i.test(m)) return "아이디(이메일) 또는 비밀번호가 맞지 않아요";
+  if (c === "email_not_confirmed") return "이메일 확인이 아직 안 된 계정이에요";
+  if (c === "signup_disabled") return "이 프로젝트는 새 가입이 막혀 있어요";
+  if (status === 429 || c === "over_request_rate_limit") return "시도가 너무 잦아요. 잠시 뒤 다시 로그인해 주세요";
+  if (!m && status === 400) return "아이디(이메일) 또는 비밀번호가 맞지 않아요";
+  return "로그인하지 못했어요" + (m ? " (" + m + ")" : "");
+}
+
+function authLogin(email, password){
+  return fetch(SB_URL + "/auth/v1/token?grant_type=password", {
+    method: "POST",
+    headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email, password: password })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if (!r.ok) throw new Error(authErrMsg(d, r.status));
+      return d;
+    });
+  });
+}
+function authRefresh(refreshToken){
+  return fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+    method: "POST",
+    headers: { "apikey": SB_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(d){
+      if (!r.ok || !d.access_token) throw new Error("세션을 갱신하지 못했어요");
+      return d;
+    });
+  });
+}
+function authLogoutCall(token){
+  return fetch(SB_URL + "/auth/v1/logout", {
+    method: "POST",
+    headers: { "apikey": SB_KEY, "Authorization": "Bearer " + token }
   });
 }
 
@@ -161,9 +257,10 @@ function coreGradeChip(key, small){
    oStatus(o) 는 status 가 없으면 "received" 이므로 두 경우를 한 벌로 덮는다. */
 function pushOrder(o){
   if (!sbOn()) return Promise.resolve();
+  /* 새 주문은 '넣기'만 한다 — 손님(anon)은 이 테이블에 INSERT 만 되고 조회는 안 된다 */
   return sbCall("retail_orders", {
     method: "POST",
-    headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+    headers: { "Prefer": "return=minimal" },
     body: JSON.stringify([{
       id: o.no, data: o, status: oStatus(o),
       created_at: isoAt(o.at),

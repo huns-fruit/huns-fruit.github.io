@@ -66,38 +66,14 @@ function writeCatalogDoc(doc){
   try { localStorage.setItem(CATALOG_KEY, JSON.stringify(doc)); } catch(e){}
   state.catalog = doc.items || {};
 }
-function pushCatalog(){
-  if (!sbOn()) return Promise.resolve();
-  var doc = catalogDoc();
-  if (!doc.updatedAt) doc.updatedAt = Date.now();
-  return sbCall("app_state", {
-    method: "POST",
-    headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
-    body: JSON.stringify([{ key: SB_CATALOG, value: doc, updated_at: new Date().toISOString() }])
-  }).catch(function(){});
-}
-/* 주문으로 줄어든 남은 수량만 올린다.
-   서버의 최신 문서 위에 얹어 쓰기 때문에 사장님이 고른 가격·코멘트·등급을 덮지 않는다. */
+/* 카탈로그(app_state)는 사장님만 쓴다 — 손님 화면은 읽기만 하고,
+   주문으로 줄어든 수량은 pushStockPatch() 의 DB 함수로만 알린다. */
+/* 주문으로 줄어든 남은 수량만 서버에 알린다.
+   서버가 최신 문서 위에 얹어 쓰기 때문에 사장님이 고른 가격·코멘트·등급을 덮지 않고,
+   여러 명이 동시에 주문해도 서버 값 보다 커지지 않는다(늘어나지 않게). */
 function pushStockPatch(patch){
   if (!sbOn()) return Promise.resolve();
-  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=value").then(function(rows){
-    var remote = rows && rows[0] && rows[0].value;
-    var doc = (remote && remote.items) ? remote : catalogDoc();
-    doc.items = doc.items || {};
-    for (var pid in patch){
-      var it = doc.items[pid] || {};
-      it.stock = patch[pid];
-      doc.items[pid] = it;
-    }
-    doc.updatedAt = Date.now();
-    writeCatalogDoc(doc);
-    loadCatalog();
-    return sbCall("app_state", {
-      method: "POST",
-      headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify([{ key: SB_CATALOG, value: doc, updated_at: new Date().toISOString() }])
-    });
-  }).catch(function(){});
+  return sbRpc("decrement_catalog_stock", { patch: patch }).catch(function(){});
 }
 function pullCatalog(){
   if (!sbOn()) return Promise.resolve();
@@ -117,11 +93,14 @@ function pullCatalog(){
 function pullOrderStatus(){
   if (!sbOn() || !state.orders.length) return Promise.resolve();
   var ids = state.orders.slice(0, 20).map(function(o){ return o.no; });
-  var sel = encodeURIComponent("id,status,cancelReason:data->>cancelReason,cancelAt:data->>cancelAt");
-  return sbCall("retail_orders?select=" + sel + "&id=in.(" + encodeURIComponent(sbQuoted(ids)) + ")").then(function(rows){
+  /* 로그인 없이: 내 주문번호의 상태·취소사유만 돌려주는 DB 함수 */
+  return sbRpc("get_customer_order_statuses", { order_ids: ids }).then(function(rows){
     rows = rows || [];
     var byNo = {}, present = [];
-    rows.forEach(function(r){ byNo[r.id] = r; present.push(r.id); });
+    rows.forEach(function(r){
+      byNo[r.id] = { status: r.status, cancelReason: r.cancel_reason, cancelAt: r.cancel_at };
+      present.push(r.id);
+    });
     var changed = false;
     /* 사장님이 공용 DB에서 지운 주문(결제 실패·중복)은 이 기기 목록에서도 뺀다 */
     var split = splitDeletedOrders(state.orders, present, ids);
@@ -149,9 +128,10 @@ function pullOrderStatus(){
 /* ── 사진 접수 ── */
 function pushClaim(c){
   if (!sbOn()) return Promise.resolve();
+  /* 사진 접수도 '넣기'만 — 손님(anon)은 이 테이블을 조회할 수 없다 */
   return sbCall("retail_claims", {
     method: "POST",
-    headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+    headers: { "Prefer": "return=minimal" },
     body: JSON.stringify([{
       id: c.no, data: c, status: c.status || "checking",
       created_at: new Date(c.at || Date.now()).toISOString()
@@ -162,7 +142,8 @@ function pullClaimStatus(){
   var list = loadClaims();
   if (!sbOn() || !list.length) return Promise.resolve();
   var ids = list.slice(0, 12).map(function(c){ return c.no; });
-  return sbCall("retail_claims?select=id,status&id=in.(" + encodeURIComponent(sbQuoted(ids)) + ")").then(function(rows){
+  /* 로그인 없이: 내가 올린 접수번호의 처리 상태만 돌려주는 DB 함수 */
+  return sbRpc("get_customer_claim_statuses", { claim_ids: ids }).then(function(rows){
     if (!rows || !rows.length) return;
     var byNo = {};
     rows.forEach(function(r){ byNo[r.id] = r.status; });
