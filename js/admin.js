@@ -1276,7 +1276,8 @@ function bind(){
       if (cur){
         var doc = readCatalog();
         var it = doc.items[pid] || {};
-        if (typeof it.stock === "number" && it.stock <= 0) it.stock = 1;
+        var stock = (typeof it.stock === "number") ? it.stock : (p && typeof p.stock === "number" ? p.stock : null);
+        if (stock !== null && stock <= 0) it.stock = 1;
         if (Object.keys(it).length) doc.items[pid] = it;
         writeCatalog(doc);
       }
