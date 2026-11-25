@@ -48,6 +48,7 @@ function P(o){ return o; }
    품절·임박을 알리고 싶으면 사장님 페이지에서 그 품목의 남은 수량을 직접 낮추면 된다. */
 
 var SALE_DATE = "2026-11-24";
+var STRAWBERRY_PACKS = ["strawberry-4x5", "strawberry-3x5", "strawberry-3x4"];
 var STRAWBERRY_BOX = "strawberry-box-20261125";
 var WHOLESALE_MIN = { "bulk-veg":50000, "bulk-fruit":100000 };
 
@@ -83,14 +84,17 @@ var PRODUCTS = [
      badges:[["행사","hot"]], origin:"칠레산", desc:"3팩 묶음 특가", price:9900, stock:30, tags:["베리"]}),
 
   /* ── 과일 ── */
-  P({id:"strawberry", name:"딸기", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"A",
-     ogrades:["home","A","A"],
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"향·당도 좋은 생딸기 · 4x5 1팩 7,900원", stock:60,
-     tip:"냉장 2시간 뒤 드시면 더 달아요",
-     opts:[{label:"4x5 · 1팩", sub:"하루 재고", price:7900},
-           {label:"3x5 · 1팩", sub:"재입고", price:9900},
-           {label:"3x4 · 1팩", sub:"선물용 · 재입고", price:13800}],
-     tags:["딸기"]}),
+  P({id:STRAWBERRY_PACKS[0], name:"딸기 4×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", price:7900,
+     tags:["4x5"], tip:"냉장 2시간 뒤 드시면 더 달아요"}),
+
+  P({id:STRAWBERRY_PACKS[1], name:"딸기 3×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"A",
+     badges:[["행사","hot"]], origin:"국내산", price:9900, soldout:true,
+     tags:["3x5"], tip:"냉장 2시간 뒤 드시면 더 달아요"}),
+
+  P({id:STRAWBERRY_PACKS[2], name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"A",
+     badges:[["선물용","gift"],["오늘입고","fresh"]], origin:"국내산", price:12800,
+     tags:["3x4"], tip:"냉장 2시간 뒤 드시면 더 달아요"}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */
   P({id:"fig", endsOnSale:true, name:"무화과 가정용", unit:"1kg", cats:["fruit"], img:"fig", grade:"home",

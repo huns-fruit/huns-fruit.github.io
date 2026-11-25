@@ -234,7 +234,8 @@ function corePullCatalogValue(){
 
 /* Keep each screen’s stock calculation while sharing the sold-out rule. */
 function coreIsSold(p, getStock){
-  if (ov(p.id).soldout) return true;
+  var soldout = ov(p.id).soldout;
+  if (soldout === true || (soldout === undefined && p.soldout)) return true;
   var s = getStock(p);
   return s !== null && s <= 0;
 }

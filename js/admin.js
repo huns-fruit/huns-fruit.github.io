@@ -1271,15 +1271,10 @@ function bind(){
       var pid = so.getAttribute("data-sold");
       var p = byId(pid);
       var cur = isSold(p);
-      patchItem(pid, {soldout: cur ? undefined : true});
-      // 품절 해제 시 수량이 0이면 살 수 없으므로 1로 올려 준다
-      if (cur){
-        var doc = readCatalog();
-        var it = doc.items[pid] || {};
-        if (typeof it.stock === "number" && it.stock <= 0) it.stock = 1;
-        if (Object.keys(it).length) doc.items[pid] = it;
-        writeCatalog(doc);
-      }
+      var patch = {soldout: cur ? (p.soldout ? false : undefined) : true};
+      var stock = effStock(p);
+      if (cur && stock !== null && stock <= 0) patch.stock = 1;
+      patchItem(pid, patch);
       deferRender();
       toast(cur ? (p ? p.name : "상품") + " 품절을 풀었어요" : (p ? p.name : "상품") + "을(를) 품절로 바꿨어요");
       return;
