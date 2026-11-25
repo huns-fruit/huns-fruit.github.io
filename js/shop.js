@@ -671,6 +671,8 @@ function minOrderHtml(){
   if (state.mode === "pickup") return "";
   var z = zoneInfo(), req = deliveryRequirements();
   if (req.gap === 0 && !req.cityOnly) return "";
+  /* 시내권은 사과 10kg 조건(다른 상품 3만원)과 배달 최소주문이 같은 금액이라 안내가 겹칩니다 — 한 장만 보여 줍니다 */
+  if (state.zone === "city" && appleRequirement().gap && !req.notes.length) return "";
   var title = req.cityOnly ? "식자재는 원주 시내권만 배달돼요" : z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
   var notes = req.notes.length ? req.notes : [money(z.min) + "원부터 배달돼요."];
   return '<div class="mincard"><b>' + title + '</b><p>' + notes.join("<br>") + '</p>'
