@@ -131,7 +131,7 @@
 .orows{margin-top:10px;display:flex;flex-direction:column;gap:5px}
 .orow{display:flex;gap:8px;font-size:13px;letter-spacing:-.2px;align-items:flex-start}
 .orow span{flex:0 0 62px;color:var(--ink3);font-weight:700}
-.orow b{flex:1 1 auto;font-weight:800;color:var(--ink)}
+.orow b{flex:1 1 auto;min-width:0;font-weight:800;color:var(--ink)}
 .orow b.slot{color:var(--mint-d)}
 /* 현관 비밀번호 — 배달 주소 바로 아래, 눈에 띄게 */
 .orow.gate span{flex:0 0 auto;white-space:nowrap;color:#B33A31}
