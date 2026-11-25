@@ -83,14 +83,15 @@ var PRODUCTS = [
      badges:[["행사","hot"]], origin:"칠레산", desc:"3팩 묶음 특가", price:9900, stock:30, tags:["베리"]}),
 
   /* ── 과일 ── */
-  P({id:"strawberry", name:"딸기", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"A",
-     ogrades:["home","A","A"],
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"향·당도 좋은 생딸기 · 4x5 1팩 7,900원", stock:60,
-     tip:"냉장 2시간 뒤 드시면 더 달아요",
-     opts:[{label:"4x5 · 1팩", sub:"하루 재고", price:7900},
-           {label:"3x5 · 1팩", sub:"재입고", price:9900},
-           {label:"3x4 · 1팩", sub:"선물용 · 재입고", price:13800}],
-     tags:["딸기"]}),
+  P({id:"strawberry-4x5", name:"딸기 4×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"4×5 크기 딸기 1팩", price:7900, stock:37,
+     tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","4x5"]}),
+  P({id:"strawberry-3x5", name:"딸기 3×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×5 크기 딸기 1팩", price:9900, stock:0,
+     tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x5"]}),
+  P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:12800, stock:37,
+     tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x4"]}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */
   P({id:"fig", endsOnSale:true, name:"무화과 가정용", unit:"1kg", cats:["fruit"], img:"fig", grade:"home",
