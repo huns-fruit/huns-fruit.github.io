@@ -63,10 +63,17 @@ function productAvailable(p){
 }
 
 var PRODUCTS = [
-  P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4",
-     cats:["deal","fruit"], img:"strawberry", price:40000, stock:50, startsOnSale:true,
+  /* 4만 원 딸기 행사는 2026-11-25 사장님 지시로 종료 — 판매 내리고 남은 수량 0(품절)으로 둔다.
+     다시 열 때는 endsOnSale 을 빼고 stock 을 채우면 된다. */
+  P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4", endsOnSale:true,
+     cats:["deal","fruit"], img:"strawberry", price:40000, stock:0,
      badges:[["50박스 한정","hot"]], desc:"포장 단독 구매 가능 · 배달은 다른 상품 15,000원 이상 함께 주문"}),
   /* ── 오늘특가 ── */
+
+  /* 사과 10kg 특가 — 다른 상품 30,000원 이상 함께 주문해야 하고, 최소주문금액 계산에서는 빠진다 (shop.js APPLE_DEAL_ID) */
+  P({id:"apple-10kg-deal", name:"사과 10kg 특가", unit:"1박스 (10kg)", cats:["deal","fruit"], img:"apple",
+     badges:[["특가","hot"],["최대 3박스","fresh"]], price:16800, stock:50, maxQty:3,
+     desc:"다른 상품 30,000원 이상 함께 주문 시 구매 가능 · 1주문 최대 3박스", tags:["사과 부사"]}),
 
   P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
      badges:[["행사","hot"]], origin:"베트남/필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
@@ -89,8 +96,8 @@ var PRODUCTS = [
   P({id:"strawberry-3x5", name:"딸기 3×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
      badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×5 크기 딸기 1팩", price:9900, stock:0,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x5"]}),
-  P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:40000, stock:37,
+  P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal", endsOnSale:true,
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:40000, stock:0,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x4"]}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */

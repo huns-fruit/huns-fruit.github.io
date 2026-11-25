@@ -23,6 +23,10 @@ var PICKUP_DISCOUNT = 1000;
 var PICKUP_MIN = 15000;
 var PICKUP_STRAWBERRY_ID = "strawberry-3x4";
 var PICKUP_STRAWBERRY_ADDON_MIN = 15000;
+/* 사과 10kg 특가 — 다른 상품 30,000원 이상을 함께 담아야 주문되고,
+   사과 금액은 최소주문금액·쿠폰·바나나 이벤트 조건 계산에서 완전히 빠진다 (배달·포장 공통). */
+var APPLE_DEAL_ID = "apple-10kg-deal";
+var APPLE_ADDON_MIN = 30000;
 var COUPON_KEY = "hoonie_retail_pickup_coupon_v1";
 /* 오픈 기념 바나나 100원도 포장 쿠폰과 똑같이 하루 1회 — 사용한 날짜를 기기에 남긴다 */
 var BANANA_KEY = "hoonie_retail_banana_event_v1";   // {"date":"2026-11-24"}
@@ -548,6 +552,36 @@ function applyRecent(){
    ──────────────────────────────────────────────── */
 function count(){ var n=0; for (var i=0;i<state.cart.length;i++) n += state.cart[i].qty; return n; }
 function subtotal(){ var s=0; for (var i=0;i<state.cart.length;i++) s += linePrice(state.cart[i]) * state.cart[i].qty; return s; }
+/* ── 사과 10kg 특가 ─────────────────────────────
+   사과 금액은 결제 금액에는 들어가지만, 최소주문금액·포장 쿠폰·바나나 이벤트 조건은
+   '다른 상품' 합계(otherSubtotal)로만 본다. 사과를 담았으면 다른 상품 30,000원 이상이 조건이다. */
+function otherSubtotal(){
+  var s = 0;
+  for (var i=0;i<state.cart.length;i++){
+    if (state.cart[i].pid === APPLE_DEAL_ID) continue;
+    s += linePrice(state.cart[i]) * state.cart[i].qty;
+  }
+  return s;
+}
+function appleRequirement(){
+  var apple = 0;
+  for (var i=0;i<state.cart.length;i++) if (state.cart[i].pid === APPLE_DEAL_ID) apple += linePrice(state.cart[i]) * state.cart[i].qty;
+  var other = otherSubtotal();
+  return { has: apple > 0, apple: apple, other: other,
+           gap: apple > 0 ? Math.max(0, APPLE_ADDON_MIN - other) : 0 };
+}
+/* 사과 10kg 조건 안내 카드 (장바구니·주문서 공용) */
+function appleDealNoticeHtml(){
+  var req = appleRequirement();
+  if (!req.has) return "";
+  if (req.gap){
+    return '<div class="mincard"><b>사과 10kg 특가는 다른 상품 ' + money(APPLE_ADDON_MIN) + '원 이상과 함께 주문할 수 있어요</b>'
+      + '<p>다른 상품 ' + money(req.other) + '원 담김 · ' + money(req.gap) + '원 더 담아 주세요.<br>'
+      + '사과 10kg 특가 ' + money(req.apple) + '원은 최소주문금액에 들어가지 않아요.'
+      + (state.mode === "pickup" ? '<br>포장(픽업) 주문도 같은 조건이에요.' : '') + '</p></div>';
+  }
+  return '<div class="warn green" style="margin-top:12px">사과 10kg 특가 조건을 충족했어요 · 다른 상품 ' + money(req.other) + '원을 함께 주문해요</div>';
+}
 function pickupStrawberryRequirement(){
   var hasProduct = false, otherTotal = 0;
   for (var i=0;i<state.cart.length;i++){
@@ -573,10 +607,12 @@ function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state
 var STRAWBERRY_ADDON_MIN = 15000;
 
 function deliveryRequirements(){
-  var totals = {}, hasBox = false, otherTotal = 0, total = 0;
+  var totals = {}, hasBox = false, otherTotal = 0, base = 0;
   state.cart.forEach(function(line){
     var p = byId(line.pid), amount = linePrice(line) * line.qty;
-    total += amount;
+    /* 사과 10kg 특가 금액은 최소주문금액 계산에서 완전히 제외 — 조건은 appleRequirement() 가 따로 본다 */
+    if (p.id === APPLE_DEAL_ID) return;
+    base += amount;
     if (p.id === STRAWBERRY_BOX) hasBox = true;
     else otherTotal += amount;
     var category = p.cats[0];
@@ -591,23 +627,50 @@ function deliveryRequirements(){
     bulkGap += gap;
     if (gap) notes.push((category === "bulk-veg" ? "식자재 채소" : "식자재 과일") + " 배달은 해당 상품 " + money(min) + "원 이상부터 가능해요. " + money(gap) + "원 더 담아 주세요.");
   });
+  var baseGap = Math.max(0, zoneInfo().min - base);
   return {
+    base: base,
+    baseGap: baseGap,
     strawberryGap: strawberryGap,
     cityOnly: state.zone !== "city" && Object.keys(totals).length > 0,
-    gap: Math.max(0, zoneInfo().min - total, strawberryGap, bulkGap),
+    gap: Math.max(baseGap, strawberryGap, bulkGap),
     notes: notes
   };
 }
 
-function remaining(){ return state.mode === "pickup" ? 0 : deliveryRequirements().gap; }
+function remaining(){
+  var appleGap = appleRequirement().gap;
+  if (state.mode === "pickup") return appleGap;
+  return Math.max(deliveryRequirements().gap, appleGap);
+}
 function meetMin(){
+  /* 사과 10kg 특가를 담았으면 배달·포장 모두 다른 상품 30,000원 이상이어야 한다 */
+  if (appleRequirement().gap) return false;
   if (state.mode === "pickup") return true;
   var req = deliveryRequirements();
   return !req.cityOnly && req.gap === 0;
 }
+/* 주문 버튼이 잠긴 이유 (장바구니·주문서 공용) — 없으면 빈 문자열 */
+function blockReason(){
+  var issue = cartStockIssue();
+  if (issue) return issue;
+  var pickupGap = pickupStrawberryRequirement().gap;
+  if (pickupGap) return "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요";
+  var ap = appleRequirement();
+  if (ap.gap) return "다른 상품 " + money(ap.gap) + "원 더 담아 주세요";
+  if (state.mode === "delivery"){
+    var req = deliveryRequirements();
+    if (req.cityOnly) return "식자재는 원주 시내권만 배달돼요";
+    if (req.gap) return money(req.gap) + "원 더 담으면 배달돼요";
+  }
+  return "";
+}
 function minOrderHtml(){
   if (meetMin()) return "";
+  /* 포장(픽업)은 최소주문이 따로 없다 — 사과 10kg 조건만 appleDealNoticeHtml() 이 안내한다 */
+  if (state.mode === "pickup") return "";
   var z = zoneInfo(), req = deliveryRequirements();
+  if (req.gap === 0 && !req.cityOnly) return "";
   var title = req.cityOnly ? "식자재는 원주 시내권만 배달돼요" : z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
   var notes = req.notes.length ? req.notes : [money(z.min) + "원부터 배달돼요."];
   return '<div class="mincard"><b>' + title + '</b><p>' + notes.join("<br>") + '</p>'
@@ -616,28 +679,28 @@ function minOrderHtml(){
 }
 function todayStr(){ return koreanDateKey(); }
 function couponUsedToday(){ return state.couponDate === todayStr(); }
-/* 15,000원까지 남은 금액 */
-function couponGap(){ return Math.max(0, PICKUP_MIN - subtotal()); }
+/* 15,000원까지 남은 금액 — 사과 10kg 특가는 여기서도 빠진다 */
+function couponGap(){ return Math.max(0, PICKUP_MIN - otherSubtotal()); }
 /* 쿠폰 상태: used(오늘 사용) / delivery(배달) / empty(빈 장바구니) / need(금액 부족) / on(사용 가능) */
 function couponState(){
   if (couponUsedToday()) return "used";
   if (state.mode !== "pickup") return "delivery";
   if (!state.cart.length) return "empty";
-  return subtotal() >= PICKUP_MIN ? "on" : "need";
+  return otherSubtotal() >= PICKUP_MIN ? "on" : "need";
 }
 /* 이번 주문에 적용되는 포장 할인 (포장 + 오늘 미사용 + 15,000원 이상) */
 function pickupDiscount(){
   if (state.mode !== "pickup") return 0;
   if (!state.cart.length) return 0;
   if (couponUsedToday()) return 0;
-  var sub = subtotal();
+  var sub = otherSubtotal();
   if (sub < PICKUP_MIN) return 0;
   return Math.min(PICKUP_DISCOUNT, sub);
 }
 /* ── 오픈 기념 이벤트 바나나(100원) ─────────────────────────────
-   eventBase() = 100원 이벤트 상품을 뺀 일반 상품 합계 (= 장바구니 합계)
+   eventBase() = 사과 10kg 특가·100원 이벤트를 뺀 일반 상품 합계
    eventReady() = 배달 주문 + 3만 원 이상 (주문당 1송이 · 포장에는 적용 안 함) */
-function eventBase(){ return subtotal(); }
+function eventBase(){ return otherSubtotal(); }   /* 사과 10kg 특가 금액은 3만 원 조건에 넣지 않는다 */
 function eventActive(){ var date = todayStr(); return date >= OPEN_EVENT.from && date <= OPEN_EVENT.to; }
 function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase(), deliveryRequirements().strawberryGap); }
 function bananaUsedToday(){ return state.bananaDate === todayStr(); }
@@ -840,7 +903,7 @@ function rowHtml(p){
     +   (badges ? '<div class="mbadges">' + badges + '</div>' : '')
     +   '<h3>' + esc(p.name) + '</h3>'
     +   '<p class="mdesc">' + meta + '</p>'
-    +   ((p.id === STRAWBERRY_BOX || WHOLESALE_MIN[p.cats[0]]) && p.desc ? '<p class="mdesc">' + esc(p.desc) + '</p>' : '')
+    +   ((p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID || WHOLESALE_MIN[p.cats[0]]) && p.desc ? '<p class="mdesc">' + esc(p.desc) + '</p>' : '')
     +   '<div class="mprice">' + price + stockBadgeHtml(p) + '</div>'
     +   (sold ? '' : (p.tip ? '<p class="tip">💡 ' + esc(p.tip) + '</p>' : ''))
     +   (cmt ? '<div class="cmt">💬 사장님 · ' + esc(cmt) + '</div>' : '')
@@ -920,6 +983,11 @@ function add(pid, oi, qty){
     toast(stockIssue);
     return;
   }
+  var qtyIssue = maxQtyIssue(p, qty);
+  if (qtyIssue){
+    toast(qtyIssue);
+    return;
+  }
   var found = null;
   for (var i=0;i<state.cart.length;i++){
     if (state.cart[i].pid === pid && state.cart[i].oi === oi){ found = state.cart[i]; break; }
@@ -938,6 +1006,11 @@ function setQty(key, delta){
       var stockIssue = delta > 0 && stockLimitIssue(byId(l.pid), delta);
       if (stockIssue){
         toast(stockIssue);
+        return;
+      }
+      var qtyIssue = delta > 0 && maxQtyIssue(byId(l.pid), delta);
+      if (qtyIssue){
+        toast(qtyIssue);
         return;
       }
       l.qty += delta;
@@ -1000,6 +1073,7 @@ function cartRowHtml(l){
     +   '<div class="nm">' + esc(p.name) + ' <span class="unit">' + esc(p.unit) + '</span>'
     +     (sold ? ' <span class="stockb">품절</span>' : '') + '</div>'
     +   (o ? '<div class="op">' + esc(o.label) + '</div>' : '')
+    +   (maxQtyOf(p) ? '<div class="op">1주문 최대 ' + maxQtyOf(p) + unitWord(p) + '까지</div>' : '')
     +   '<div class="pr"><b>' + money(linePrice(l) * l.qty) + '원</b>'
     +     '<button class="del" data-rm="' + k + '">삭제</button>'
     +     '<span class="stp">'
@@ -1018,6 +1092,13 @@ function stockLimitIssue(p, extra){
   if (stock === null || qtyOf(p.id) + extra <= stock) return "";
   var unit = unitWord(p);
   return p.name + "은 " + stock + unit + " 남았어요 · 수량을 줄여 주세요";
+}
+/* 1주문당 수량 제한 (사과 10kg 특가 = 3박스) */
+function maxQtyOf(p){ return (p && typeof p.maxQty === "number" && p.maxQty > 0) ? p.maxQty : null; }
+function maxQtyIssue(p, extra){
+  var max = maxQtyOf(p);
+  if (!max || qtyOf(p.id) + extra <= max) return "";
+  return p.name + "는 1주문당 최대 " + max + unitWord(p) + "까지 가능해요";
 }
 function cartStockIssue(){
   for (var i=0;i<state.cart.length;i++){
@@ -1254,6 +1335,7 @@ function renderCart(){
     if (deliveryClosed()) h += deliveryClosedNote(false);
   }
   h += pickupStrawberryNoticeHtml();
+  h += appleDealNoticeHtml();
   h += slotBoxHtml();
   h += '<div class="cartlist">';
   for (var i=0;i<state.cart.length;i++) h += cartRowHtml(state.cart[i]);
@@ -1264,7 +1346,7 @@ function renderCart(){
   h += benefitsCardHtml();
   if (!meetMin()){
     h += minOrderHtml();
-    if (!deliveryRequirements().cityOnly && !deliveryRequirements().notes.length) h += fillCardHtml();
+    if (!deliveryRequirements().cityOnly && !deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
   }
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
@@ -1272,14 +1354,10 @@ function renderCart(){
   h += '<p class="note">포장 1,000원 할인 쿠폰은 15,000원 이상 주문에 하루 1회만 적용됩니다.</p>';
   body.innerHTML = h;
 
-  var issue = cartStockIssue(), pickupGap = pickupStrawberryRequirement().gap;
-  if (issue || pickupGap || !meetMin()){
+  var reason = blockReason();
+  if (reason){
     btn.disabled = true;
-    btn.textContent = issue || (pickupGap
-      ? "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요"
-      : (deliveryRequirements().cityOnly
-        ? "식자재는 원주 시내권만 배달돼요"
-        : money(remaining()) + "원 더 담으면 배달돼요"));
+    btn.textContent = reason;
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1607,7 +1685,9 @@ function reorderLast(){
   for (var i=0;i<o.items.length;i++){
     var it = o.items[i], line = migrateLegacyStrawberryLine(it), p = line && byId(line.pid);
     if (!p || isSold(p) || !orderableOption(p, line.oi)) continue;
-    items.push({pid: line.pid, oi: line.oi, qty: line.qty});
+    var qty = line.qty, max = maxQtyOf(p);
+    if (max && qty > max) qty = max;      /* 1주문 수량 제한(사과 10kg 3박스)을 넘지 않게 */
+    items.push({pid: line.pid, oi: line.oi, qty: qty});
   }
   if (!items.length){ toast("지난번 상품이 지금은 품절이에요"); return; }
   state.cart = items;
@@ -1686,6 +1766,7 @@ function renderCheckout(){
           : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>'
       + pickupStrawberryNoticeHtml();
   }
+  h += appleDealNoticeHtml();
   h += slotBoxHtml();
   h += '<div class="field" style="margin-top:14px"><label for="ckMemo">요청사항 (선택)</label>'
     + '<input id="ckMemo" value="' + esc(f.memo) + '" placeholder="예: 덜 익은 걸로 주세요 / 문 앞에 놔주세요">'
@@ -1752,14 +1833,10 @@ function updatePayBtn(){
     btn.textContent = "딸기 재고 확인 중…";
     return;
   }
-  var issue = cartStockIssue(), pickupGap = pickupStrawberryRequirement().gap;
-  if (issue || pickupGap || !meetMin()){
+  var reason = blockReason();
+  if (reason){
     btn.disabled = true;
-    btn.textContent = issue || (pickupGap
-      ? "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요"
-      : (deliveryRequirements().cityOnly
-        ? "식자재는 원주 시내권만 배달돼요"
-        : money(remaining()) + "원 더 담으면 배달돼요"));
+    btn.textContent = reason;
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1817,7 +1894,7 @@ async function pay(){
   }
 
   if (!meetMin()){
-    toast(deliveryRequirements().cityOnly ? "식자재는 원주 시내권만 배달돼요" : money(remaining()) + "원 더 담으면 배달돼요");
+    toast(blockReason() || (state.mode === "pickup" ? "주문 조건을 확인해 주세요" : money(remaining()) + "원 더 담으면 배달돼요"));
     return;
   }
   if (!f.agree){ toast("주문 내용 확인에 동의해 주세요"); $("#agreeBox").classList.add("bad"); return; }
