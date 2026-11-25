@@ -291,3 +291,11 @@ body.locked .app{display:none}
 .logoutbtn{display:inline-flex;align-items:center;height:28px;padding:0 9px;border-radius:999px;border:1px solid var(--line);
   font-size:11.5px;font-weight:800;color:var(--ink3);background:#fff;letter-spacing:-.2px;flex:0 0 auto}
 .logoutbtn:active{background:var(--bg)}
+
+/* 좁은 폰: 상단 오른쪽에 버튼이 세 개(영업중·손님 화면·로그아웃)라 줄바꿈되게 둔다 */
+.trow{flex-wrap:wrap}
+@media (max-width:380px){
+  .brand{font-size:17.5px}
+  .sub{font-size:11.5px}
+  .open,.shoplink,.logoutbtn{padding:0 7px}
+}
