@@ -814,9 +814,21 @@ function countRegulars(list){
   });
   return m;
 }
+/* 단골 등급 5단계 — 2회 미만은 표시하지 않는다. 이 화면(사장님 페이지)에서만 보인다. */
+var REG_TIERS = [
+  {min: 100, cls: "lv5", tx: "💎 VVIP "},
+  {min: 50,  cls: "lv4", tx: "👑 VIP "},
+  {min: 10,  cls: "lv3", tx: "🏅 찐단골 "},
+  {min: 5,   cls: "lv2", tx: "🌟 우수단골 "},
+  {min: 2,   cls: "",    tx: "⭐ 단골 "}
+];
 function regularBadgeHtml(o){
   var n = regularCounts[String((o && o.phone) || "").replace(/\D/g, "")] || 0;
-  return n >= 2 ? '<span class="obadge reg" title="같은 번호로 ' + n + '번 주문한 단골 고객">⭐ 단골 ' + n + '회</span>' : "";
+  for (var i = 0; i < REG_TIERS.length; i++){
+    var t = REG_TIERS[i];
+    if (n >= t.min) return '<span class="obadge reg' + (t.cls ? " " + t.cls : "") + '" title="같은 번호로 ' + n + '번 주문한 단골 고객">' + t.tx + n + '회</span>';
+  }
+  return "";
 }
 function orderCardHtml(o){
   var st = oStatus(o);

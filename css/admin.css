@@ -113,6 +113,10 @@
 .obadge.pickup{background:var(--amber-l);color:var(--amber)}
 .obadge.ev{background:#FFF3C4;color:#7A5200}
 .obadge.reg{background:#FFF3C4;color:#7A5200;border:1px solid #F0C64A;white-space:nowrap;flex:0 0 auto}
+.obadge.reg.lv2{background:#E6F8EE;color:#127A46;border-color:#A3DEBC}
+.obadge.reg.lv3{background:#FFEBD8;color:#A04C00;border-color:#F4BE8B}
+.obadge.reg.lv4{background:#F1EAFF;color:#5731AE;border-color:#C9B2F6}
+.obadge.reg.lv5{background:linear-gradient(180deg,#3B4062,#232742);color:#FFD977;border-color:#C9A227}
 .oit.ev{background:#FFFBEA;border:1px solid #F3E2A6;border-radius:8px;padding:5px 7px;margin:0 -3px}
 .oit.ev .n b{color:#6B4A00}
 .oev{color:#7A5200}
