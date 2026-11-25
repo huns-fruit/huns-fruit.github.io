@@ -90,7 +90,7 @@ var PRODUCTS = [
      badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×5 크기 딸기 1팩", price:9900, stock:0,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x5"]}),
   P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:12800, stock:37,
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:40000, stock:37,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x4"]}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */
