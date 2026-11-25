@@ -21,8 +21,8 @@ var ZONES = {
 /* 포장(매장픽업) 하루 1회 1,000원 할인 쿠폰 — 15,000원 이상 주문에만 */
 var PICKUP_DISCOUNT = 1000;
 var PICKUP_MIN = 15000;
-var PICKUP_STRAWBERRY_ID = "strawberry-3x4";
-var PICKUP_STRAWBERRY_ADDON_MIN = 15000;
+/* (삭제) 딸기 3×4 포장 추가구매 조건 — 4만 원 2kg 박스 행사 때만 쓰던 규칙이라,
+   11/26부터 3×4를 정상 1팩(11,800원)으로 되돌리면서 함께 없앴다. 일반 상품과 같이 최소주문 없이 담긴다. */
 /* 사과 10kg 특가 — 다른 상품 30,000원 이상을 함께 담아야 주문되고,
    사과 금액은 최소주문금액·쿠폰·바나나 이벤트 조건 계산에서 완전히 빠진다 (배달·포장 공통). */
 var APPLE_DEAL_ID = "apple-10kg-deal";
@@ -582,27 +582,6 @@ function appleDealNoticeHtml(){
   }
   return '<div class="warn green" style="margin-top:12px">사과 10kg 특가 조건을 충족했어요 · 다른 상품 ' + money(req.other) + '원을 함께 주문해요</div>';
 }
-function pickupStrawberryRequirement(){
-  var hasProduct = false, otherTotal = 0;
-  for (var i=0;i<state.cart.length;i++){
-    var line = state.cart[i], p = byId(line.pid), amount = linePrice(line) * line.qty;
-    if (p && p.id === PICKUP_STRAWBERRY_ID) hasProduct = true;
-    else otherTotal += amount;
-  }
-  var gap = (state.mode === "pickup" && hasProduct)
-    ? Math.max(0, PICKUP_STRAWBERRY_ADDON_MIN - otherTotal) : 0;
-  return {hasProduct:hasProduct, otherTotal:otherTotal, gap:gap};
-}
-function pickupStrawberryIssue(){
-  var req = pickupStrawberryRequirement();
-  return req.gap ? "딸기 3×4 포장은 딸기 3×4 외 상품을 15,000원 이상 함께 구매해야 가능해요. " + money(req.gap) + "원 더 담아 주세요." : "";
-}
-function pickupStrawberryNoticeHtml(){
-  var req = pickupStrawberryRequirement();
-  if (state.mode !== "pickup" || !req.hasProduct) return "";
-  if (req.gap) return '<div class="mincard"><b>딸기 3×4 포장은 추가 구매가 필요해요</b><p>딸기 3×4 외 상품을 15,000원 이상 담아 주세요. ' + money(req.gap) + '원 더 필요해요.</p></div>';
-  return '<div class="warn green" style="margin-top:12px">딸기 3×4 외 상품 15,000원 이상 구매 조건을 충족했어요.</div>';
-}
 function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state.zone]; }
 var STRAWBERRY_ADDON_MIN = 15000;
 
@@ -654,8 +633,6 @@ function meetMin(){
 function blockReason(){
   var issue = cartStockIssue();
   if (issue) return issue;
-  var pickupGap = pickupStrawberryRequirement().gap;
-  if (pickupGap) return "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요";
   var ap = appleRequirement();
   if (ap.gap) return "다른 상품 " + money(ap.gap) + "원 더 담아 주세요";
   if (state.mode === "delivery"){
@@ -1336,7 +1313,6 @@ function renderCart(){
     h += zoneChipsHtml();
     if (deliveryClosed()) h += deliveryClosedNote(false);
   }
-  h += pickupStrawberryNoticeHtml();
   h += appleDealNoticeHtml();
   h += slotBoxHtml();
   h += '<div class="cartlist">';
@@ -1765,8 +1741,7 @@ function renderCheckout(){
     h += (pickupSameDayOrderable() ? '' : pickupClosedNote(true))
       + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
       + (pickupOpenNow() ? ' · 준비되면 바로 가져가실 수 있어요.'
-          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>'
-      + pickupStrawberryNoticeHtml();
+          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>';
   }
   h += appleDealNoticeHtml();
   h += slotBoxHtml();
@@ -1882,8 +1857,6 @@ async function pay(){
   var f = state.form;
   var issue = cartStockIssue();
   if (issue){ toast(issue); return; }
-  var pickupIssue = pickupStrawberryIssue();
-  if (pickupIssue){ toast(pickupIssue); return; }
   var bad = false;
   if (!f.name.trim()){ $("#fName").classList.add("bad"); bad = true; }
   var digits = f.phone.replace(/[^0-9]/g, "");
@@ -1917,10 +1890,9 @@ async function pay(){
     }
     if (state.view !== "checkout") return;
     issue = cartStockIssue();
-    pickupIssue = pickupStrawberryIssue();
-    if (issue || pickupIssue || !meetMin() || checkoutSnapshot !== JSON.stringify([state.cart, state.mode, state.zone, f, payable()])){
+    if (issue || !meetMin() || checkoutSnapshot !== JSON.stringify([state.cart, state.mode, state.zone, f, payable()])){
       renderCheckout();
-      toast(issue || pickupIssue || "주문 내용이 바뀌었어요. 확인하고 다시 주문해 주세요");
+      toast(issue || "주문 내용이 바뀌었어요. 확인하고 다시 주문해 주세요");
       return;
     }
   }

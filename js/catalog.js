@@ -68,13 +68,28 @@ var PRODUCTS = [
   P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4", endsOnSale:true,
      cats:["deal","fruit"], img:"strawberry", price:40000, stock:0,
      badges:[["50박스 한정","hot"]], desc:"포장 단독 구매 가능 · 배달은 다른 상품 15,000원 이상 함께 주문"}),
-  /* ── 오늘특가 ── */
+  /* ── 내일(11/26) 특가 5종 ── 이 순서대로 '오늘의 행사'와 상품 목록 맨 위에 노출한다.
+     사과 10kg만 최소주문금액에서 빠지고(shop.js APPLE_DEAL_ID), 단감·토마토·반시·귤은 일반 상품처럼 최소주문금액에 들어간다. */
 
   /* 사과 10kg 특가 — 다른 상품 30,000원 이상 함께 주문해야 하고, 최소주문금액 계산에서는 빠진다 (shop.js APPLE_DEAL_ID) */
   P({id:"apple-10kg-deal", name:"사과 10kg 특가", unit:"1박스 (10kg)", cats:["deal","fruit"], img:"apple",
      badges:[["특가","hot"],["최대 3박스","fresh"]], price:16800, stock:50, maxQty:3,
      desc:"다른 상품 30,000원 이상 함께 주문 시 구매 가능 · 1주문 최대 3박스", tags:["사과 부사"]}),
 
+  P({id:"persimmon-5dai-deal", name:"단감 5다이", unit:"10kg · 5다이", cats:["deal","fruit"], img:"persimmon",
+     badges:[["특가","hot"]], origin:"국내산", desc:"아삭한 단감 10kg · 5다이 한 상자", price:15000, tags:["감 단감"]}),
+
+  P({id:"tomato-retail-23", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["deal","fruit"], img:"tomato",
+     badges:[["오늘 특가","hot"]], desc:"가격 거품 뺀 실속 5kg (2~3번과)", price:6900, tags:["토마토"]}),
+
+  P({id:"bansee-5kg-deal", name:"반시", unit:"5kg", cats:["deal","fruit"], img:"persimmon",
+     badges:[["특가","hot"]], origin:"국내산", desc:"부드럽게 익은 반시 5kg 특가", price:6900, tags:["감 홍시"]}),
+
+  /* 가정용 감귤 B급 2L — 내일 행사 7,900원. L(5kg)은 일반 과일 목록에 9,900원으로 따로 둔다(tangerine-home-l) */
+  P({id:"tangerine-home-2l", name:"가정용 감귤 B급", unit:"5kg · 2L", cats:["deal","fruit"], img:"tangerine",
+     grade:"B", origin:"제주산", price:7900, badges:[["특가","hot"]]}),
+
+  /* ── 다른 행사 ── */
   P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
      badges:[["행사","hot"]], origin:"베트남/필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
      tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
@@ -94,10 +109,10 @@ var PRODUCTS = [
      badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"4×5 크기 딸기 1팩", price:7900, stock:37,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","4x5"]}),
   P({id:"strawberry-3x5", name:"딸기 3×5", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×5 크기 딸기 1팩", price:9900, stock:0,
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×5 크기 딸기 1팩", price:10800, stock:30,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x5"]}),
-  P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal", endsOnSale:true,
-     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:40000, stock:0,
+  P({id:"strawberry-3x4", name:"딸기 3×4", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"normal",
+     badges:[["행사","hot"],["오늘입고","fresh"]], origin:"국내산", desc:"3×4 크기 딸기 1팩", price:11800, stock:30,
      tip:"냉장 2시간 뒤 드시면 더 달아요", tags:["딸기","3x4"]}),
 
   /* 무화과 2가지 — 가정용(실속) 5,900원 · A급(품질보증) 9,900원 */
@@ -131,8 +146,8 @@ var PRODUCTS = [
            {label:"서귀포 B급 S/2S · 5kg", price:15000}],
      tags:["귤 감귤"]}),
 
-  P({id:"tangerine-home-2l", name:"가정용 감귤 B급", unit:"5kg · 2L/L", cats:["fruit","deal"], img:"tangerine",
-     grade:"B", origin:"제주산", price:7900, startsOnSale:true, badges:[["특가","hot"]]}),
+  P({id:"tangerine-home-l", name:"가정용 감귤 B급", unit:"5kg · L", cats:["fruit"], img:"tangerine",
+     grade:"B", origin:"제주산", price:9900}),
   P({id:"tangerine-seogwipo-m", name:"서귀포 감귤 B급", unit:"5kg · M", cats:["fruit"], img:"tangerine",
      grade:"B", origin:"제주 서귀포", price:12800, startsOnSale:true}),
   P({id:"tangerine-small", name:"제주 감귤", unit:"5kg · S·2S", cats:["fruit"], img:"tangerine",
@@ -178,9 +193,6 @@ var PRODUCTS = [
 
   P({id:"goldkiwi-local-12", name:"국내산 골드키위", unit:"12개", cats:["fruit"], img:"kiwi",
      badges:[], origin:"국내산", price:9900, tags:["키위"]}),
-
-  P({id:"tomato-retail-23", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["fruit","deal"], img:"tomato",
-     badges:[["오늘 특가","hot"]], desc:"가격 거품 뺀 실속 5kg (2~3번과)", price:6900, tags:["토마토"]}),
 
   P({id:"tomato", name:"완숙 토마토", unit:"5kg · 1번", cats:["fruit"], img:"tomato", grade:"home",
      badges:[], origin:"국내산", desc:"완숙 토마토 1번과", price:15000, tags:["토마토"],
