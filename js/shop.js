@@ -21,6 +21,8 @@ var ZONES = {
 /* 포장(매장픽업) 하루 1회 1,000원 할인 쿠폰 — 15,000원 이상 주문에만 */
 var PICKUP_DISCOUNT = 1000;
 var PICKUP_MIN = 15000;
+var PICKUP_STRAWBERRY_ID = "strawberry-3x4";
+var PICKUP_STRAWBERRY_ADDON_MIN = 15000;
 var COUPON_KEY = "hoonie_retail_pickup_coupon_v1";
 /* 오픈 기념 바나나 100원도 포장 쿠폰과 똑같이 하루 1회 — 사용한 날짜를 기기에 남긴다 */
 var BANANA_KEY = "hoonie_retail_banana_event_v1";   // {"date":"2026-11-24"}
@@ -546,6 +548,27 @@ function applyRecent(){
    ──────────────────────────────────────────────── */
 function count(){ var n=0; for (var i=0;i<state.cart.length;i++) n += state.cart[i].qty; return n; }
 function subtotal(){ var s=0; for (var i=0;i<state.cart.length;i++) s += linePrice(state.cart[i]) * state.cart[i].qty; return s; }
+function pickupStrawberryRequirement(){
+  var hasProduct = false, otherTotal = 0;
+  for (var i=0;i<state.cart.length;i++){
+    var line = state.cart[i], p = byId(line.pid), amount = linePrice(line) * line.qty;
+    if (p && p.id === PICKUP_STRAWBERRY_ID) hasProduct = true;
+    else otherTotal += amount;
+  }
+  var gap = (state.mode === "pickup" && hasProduct)
+    ? Math.max(0, PICKUP_STRAWBERRY_ADDON_MIN - otherTotal) : 0;
+  return {hasProduct:hasProduct, otherTotal:otherTotal, gap:gap};
+}
+function pickupStrawberryIssue(){
+  var req = pickupStrawberryRequirement();
+  return req.gap ? "딸기 3×4 포장은 딸기 3×4 외 상품을 15,000원 이상 함께 구매해야 가능해요. " + money(req.gap) + "원 더 담아 주세요." : "";
+}
+function pickupStrawberryNoticeHtml(){
+  var req = pickupStrawberryRequirement();
+  if (state.mode !== "pickup" || !req.hasProduct) return "";
+  if (req.gap) return '<div class="mincard"><b>딸기 3×4 포장은 추가 구매가 필요해요</b><p>딸기 3×4 외 상품을 15,000원 이상 담아 주세요. ' + money(req.gap) + '원 더 필요해요.</p></div>';
+  return '<div class="warn green" style="margin-top:12px">딸기 3×4 외 상품 15,000원 이상 구매 조건을 충족했어요.</div>';
+}
 function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state.zone]; }
 var STRAWBERRY_ADDON_MIN = 15000;
 
@@ -1230,6 +1253,7 @@ function renderCart(){
     h += zoneChipsHtml();
     if (deliveryClosed()) h += deliveryClosedNote(false);
   }
+  h += pickupStrawberryNoticeHtml();
   h += slotBoxHtml();
   h += '<div class="cartlist">';
   for (var i=0;i<state.cart.length;i++) h += cartRowHtml(state.cart[i]);
@@ -1248,12 +1272,14 @@ function renderCart(){
   h += '<p class="note">포장 1,000원 할인 쿠폰은 15,000원 이상 주문에 하루 1회만 적용됩니다.</p>';
   body.innerHTML = h;
 
-  var issue = cartStockIssue();
-  if (issue || !meetMin()){
+  var issue = cartStockIssue(), pickupGap = pickupStrawberryRequirement().gap;
+  if (issue || pickupGap || !meetMin()){
     btn.disabled = true;
-    btn.textContent = issue || (deliveryRequirements().cityOnly
-      ? "식자재는 원주 시내권만 배달돼요"
-      : money(remaining()) + "원 더 담으면 배달돼요");
+    btn.textContent = issue || (pickupGap
+      ? "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요"
+      : (deliveryRequirements().cityOnly
+        ? "식자재는 원주 시내권만 배달돼요"
+        : money(remaining()) + "원 더 담으면 배달돼요"));
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1657,7 +1683,8 @@ function renderCheckout(){
     h += (pickupSameDayOrderable() ? '' : pickupClosedNote(true))
       + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
       + (pickupOpenNow() ? ' · 준비되면 바로 가져가실 수 있어요.'
-          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>';
+          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 내일 오전 9시 이후 픽업이에요.')) + '</div>'
+      + pickupStrawberryNoticeHtml();
   }
   h += slotBoxHtml();
   h += '<div class="field" style="margin-top:14px"><label for="ckMemo">요청사항 (선택)</label>'
@@ -1725,12 +1752,14 @@ function updatePayBtn(){
     btn.textContent = "딸기 재고 확인 중…";
     return;
   }
-  var issue = cartStockIssue();
-  if (issue || !meetMin()){
+  var issue = cartStockIssue(), pickupGap = pickupStrawberryRequirement().gap;
+  if (issue || pickupGap || !meetMin()){
     btn.disabled = true;
-    btn.textContent = issue || (deliveryRequirements().cityOnly
-      ? "식자재는 원주 시내권만 배달돼요"
-      : money(remaining()) + "원 더 담으면 배달돼요");
+    btn.textContent = issue || (pickupGap
+      ? "포장 주문하려면 " + money(pickupGap) + "원 더 담아 주세요"
+      : (deliveryRequirements().cityOnly
+        ? "식자재는 원주 시내권만 배달돼요"
+        : money(remaining()) + "원 더 담으면 배달돼요"));
   } else {
     btn.disabled = false;
     btn.textContent = money(payable()) + "원 주문하기";
@@ -1774,6 +1803,8 @@ async function pay(){
   var f = state.form;
   var issue = cartStockIssue();
   if (issue){ toast(issue); return; }
+  var pickupIssue = pickupStrawberryIssue();
+  if (pickupIssue){ toast(pickupIssue); return; }
   var bad = false;
   if (!f.name.trim()){ $("#fName").classList.add("bad"); bad = true; }
   var digits = f.phone.replace(/[^0-9]/g, "");
@@ -1807,9 +1838,10 @@ async function pay(){
     }
     if (state.view !== "checkout") return;
     issue = cartStockIssue();
-    if (issue || !meetMin() || checkoutSnapshot !== JSON.stringify([state.cart, state.mode, state.zone, f, payable()])){
+    pickupIssue = pickupStrawberryIssue();
+    if (issue || pickupIssue || !meetMin() || checkoutSnapshot !== JSON.stringify([state.cart, state.mode, state.zone, f, payable()])){
       renderCheckout();
-      toast(issue || "주문 내용이 바뀌었어요. 확인하고 다시 주문해 주세요");
+      toast(issue || pickupIssue || "주문 내용이 바뀌었어요. 확인하고 다시 주문해 주세요");
       return;
     }
   }
