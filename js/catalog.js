@@ -200,6 +200,18 @@ var PRODUCTS = [
   P({id:"lettuce", name:"양상추", unit:"1통", cats:["veg"], img:"lettuce", badges:[], origin:"국내산", desc:"1통", price:2000, tags:["상추"]}),
   P({id:"sangchu", name:"상추", unit:"1봉지", cats:["veg"], img:"sangchu", badges:[], origin:"국내산", desc:"1봉지", price:2000, tags:["상추"]}),
   P({id:"perilla", name:"깻잎", unit:"1봉지", cats:["veg"], img:"perilla", badges:[], origin:"국내산", desc:"1봉지", price:1500, tags:["깻잎"], tip:"씻지 말고 냉장 보관하세요"}),
+  P({id:"gangneung-tofu-850g", name:"강릉두부", unit:"850g", cats:["veg"], price:2700, tags:["두부","강릉두부"]}),
+  P({id:"gangneung-tofu-domestic-300g", name:"강릉두부 국산", unit:"300g", cats:["veg"], origin:"국산", price:2900, tags:["두부","국산두부"]}),
+  P({id:"gangneung-chodang-tofu-550g", name:"강릉초당두부", unit:"550g", cats:["veg"], price:2700, tags:["두부","초당두부"]}),
+  P({id:"dotori-muk-400g", name:"도토리묵", unit:"400g", cats:["veg"], price:1300, tags:["묵","도토리묵"]}),
+  P({id:"gangneung-soft-tofu-350g", name:"강릉순두부", unit:"350g", cats:["veg"], price:600, tags:["두부","순두부"]}),
+  P({id:"gangneung-chodang-soft-tofu-400g", name:"강릉초당순두부", unit:"400g", cats:["veg"], price:1800, tags:["두부","순두부","초당순두부"]}),
+  P({id:"haechunsu-tofu-3kg", name:"해천수 두부", unit:"3kg", cats:["veg"], price:6500, tags:["두부","해천수"]}),
+  P({id:"kong-sari-sprouts-600g", name:"콩살이 콩나물", unit:"600g", cats:["veg"], price:1800, tags:["콩나물","콩살이"]}),
+  P({id:"chamsari-sprouts-300g", name:"참살이 콩나물", unit:"300g", cats:["veg"], price:1000, tags:["콩나물","참살이"]}),
+  P({id:"chamsari-domestic-sprouts-300g", name:"참살이 국산콩나물", unit:"300g", cats:["veg"], origin:"국산", price:1800, tags:["콩나물","국산콩나물","참살이"]}),
+  P({id:"seasoned-soup-sprouts-340g", name:"양념스프담은 콩나물", unit:"340g", cats:["veg"], price:1600, tags:["콩나물","양념스프"]}),
+  P({id:"chamsari-mung-sprouts-400g", name:"참살이 숙주", unit:"400g", cats:["veg"], price:1700, tags:["숙주","참살이"]}),
 
   /* ── 계란 ── */
   P({id:"egg-large-20261125", name:"대란", unit:"1판 (30구)", cats:["egg"], img:"egg",
