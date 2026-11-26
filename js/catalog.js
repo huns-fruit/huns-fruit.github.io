@@ -49,7 +49,6 @@ function P(o){ return o; }
 
 var SALE_DATE = "2026-11-24";
 var STRAWBERRY_BOX = "strawberry-box-20261125";
-var WHOLESALE_MIN = { "bulk-veg":50000, "bulk-fruit":100000 };
 
 function koreanDateKey(date){
   return new Date((date || new Date()).getTime() + 9 * 3600000).toISOString().slice(0, 10);
@@ -278,72 +277,13 @@ var PRODUCTS = [
   P({id:"egg-xl", endsOnSale:true, name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg", badges:[], origin:"국내산", desc:"30구 1판", price:6000, stock:8, tags:["계란 달걀"], tip:"냉장고 안쪽 칸에 두세요"})
 ];
 
-function bulkProduct(category, item){
-  return {
-    id: category + "-" + item[0], name:item[1], unit:item[2], price:item[3],
-    desc:item[4] || "", img:item[5], cats:[category], startsOnSale:true
-  };
-}
-
-var BULK_VEGETABLES = [
-  ["onion","양파","15kg · 국내산 A급",23800,"","onion"],
-  ["cabbage-green","양배추","1망",7900],
-  ["garlic","깐마늘","1kg",9900],
-  ["carrot","세척당근","10kg 1박스 · 중국산",7900],
-  ["scallion","대파","1관",7900,"","daepa"],
-  ["lettuce","양상추","12수 1박스",15000,"","lettuce"],
-  ["leaf-lettuce","상추","4kg",19800,"","sangchu"],
-  ["cabbage","배추","1망 · 55사이즈 중품",5000,"","cabbage"],
-  ["bell-pepper","피망","1kg",9900],
-  ["hot-pepper","청양고추","1kg",7500,"","cheongyang"],
-  ["crunch-pepper","아삭이고추","1kg",8000],
-  ["enoki","팽이버섯","1박스",9900],
-  ["potato-l","감자","20kg · 대",20000,"","potato"],
-  ["potato-xl","감자","20kg · 왕특",36000,"","potato"],
-  ["potato-xxl","감자","20kg · 왕왕",38000,"","potato"],
-  ["cucumber","백오이","100개입 1박스",90000],
-  ["chapchapi","찹찹이","1kg",13000],
-  ["sweet-potato","고구마","10kg · 튀김용",25000],
-  ["eggplant","가지","1박스",20000],
-  ["squash","애호박","20개입 1박스 · 특",20000,"","aehobak"],
-  ["oyster-mushroom","느타리버섯","2kg",9900],
-  ["baby-cabbage","알배기","1박스 · 상",15000],
-  ["chicory","치커리","1박스",9900],
-  ["garlic-stem","수입마늘쫑","1단 · 중국산",3000],
-  ["ground-garlic","간마늘","1kg",8500],
-  ["ground-ginger","간생강","1kg",11000],
-  ["curly-sprouts","곱슬이","1박스",3500],
-  ["soy-sprouts","일자콩나물","1박스",3500],
-  ["mung-sprouts","숙주","1박스",5500],
-  ["tofu","강릉심해순두부","1kg 식자재용 · 1박스",18000]
-];
-
-var BULK_FRUITS = [
-  ["lemon","레몬","50개입",25000],
-  ["grapefruit","자몽","25개입",37500],
-  ["banana","바나나","12/14발 1박스 · 필리핀/베트남산",14000,"","banana"],
-  ["pineapple","골드파인애플","6수 1박스",43000,"","pineapple"],
-  ["pineapple-b","골드파인애플","7~9수 · B급",18000,"","pineapple"],
-  ["apple-3","안동 사과","20kg · 상 3번",40000,"","apple"],
-  ["apple-56","안동 사과","20kg · 특 5~6번",70000,"","apple"],
-  ["persimmon-6","단감","10kg · 6다이",20000,"","persimmon"],
-  ["persimmon-5","단감","10kg · 5다이",25000,"","persimmon"],
-  ["tomato-23","완숙 토마토","5kg · 2~3번",6900,"시기상 A급이 아닙니다","tomato"],
-  ["tomato-1","완숙 토마토","5kg · 1번",15000,"시기상 A급이 아닙니다","tomato"],
-  ["kiwi","골드키위","5kg · 국내산",20000,"조금 익은 상품","kiwi"],
-  ["bansee-m","반시","5kg · M",8500,"","persimmon"],
-  ["bansee-s","반시","5kg · S",7000,"","persimmon"]
-];
-
-BULK_VEGETABLES.forEach(function(item){ PRODUCTS.push(bulkProduct("bulk-veg", item)); });
-BULK_FRUITS.forEach(function(item){ PRODUCTS.push(bulkProduct("bulk-fruit", item)); });
+/* 식자재 채소·과일은 2026-11-26 사장님 지시로 소매몰에서 뺐다 (식자재 전용 사이트를 따로 만드는 중).
+   예전 목록(BULK_VEGETABLES · BULK_FRUITS)은 git 기록에 남아 있다. */
 
 var CATS = [
   {key:"all", label:"전체", title:"오늘 입고 상품"},
   {key:"deal", label:"🔥 오늘특가", title:"오늘의 특가"},
   {key:"fruit", label:"🍓 과일", title:"과일"},
   {key:"veg", label:"🥦 채소", title:"신선 채소"},
-  {key:"egg", label:"🥚 계란", title:"계란 · 배달 최소주문금액 제외"},
-  {key:"bulk-veg", label:"식자재 채소", title:"식자재 채소 · 원주 시내 배달 5만 원 이상", startsOnSale:true},
-  {key:"bulk-fruit", label:"식자재 과일", title:"식자재 과일 · 원주 시내 배달 10만 원 이상", startsOnSale:true}
+  {key:"egg", label:"🥚 계란", title:"계란 · 배달 최소주문금액 제외"}
 ];
