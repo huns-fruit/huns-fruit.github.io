@@ -595,7 +595,7 @@ function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state
 var STRAWBERRY_ADDON_MIN = 15000;
 
 function deliveryRequirements(){
-  var totals = {}, hasBox = false, otherTotal = 0, egg = 0;
+  var hasBox = false, otherTotal = 0, egg = 0;
   state.cart.forEach(function(line){
     var p = byId(line.pid), amount = linePrice(line) * line.qty;
     /* 사과 10kg 특가 금액은 최소주문금액 계산에서 완전히 제외 — 조건은 appleRequirement() 가 따로 본다 */
@@ -604,27 +604,18 @@ function deliveryRequirements(){
     if (isEggProduct(p)){ egg += amount; otherTotal += amount; return; }
     if (p.id === STRAWBERRY_BOX) hasBox = true;
     else otherTotal += amount;
-    var category = p.cats[0];
-    if (WHOLESALE_MIN[category]) totals[category] = (totals[category] || 0) + amount;
   });
   var base = deliveryBaseSubtotal();
   var strawberryGap = hasBox ? Math.max(0, STRAWBERRY_ADDON_MIN - otherTotal) : 0;
-  var bulkGap = 0, notes = [];
+  var notes = [];
   if (strawberryGap) notes.push("특가 딸기 배달은 다른 상품을 15,000원 이상 함께 주문해 주세요. 다른 상품 " + money(strawberryGap) + "원 더 담아 주세요.");
-  Object.keys(totals).forEach(function(category){
-    var min = WHOLESALE_MIN[category];
-    var gap = Math.max(0, min - totals[category]);
-    bulkGap += gap;
-    if (gap) notes.push((category === "bulk-veg" ? "식자재 채소" : "식자재 과일") + " 배달은 해당 상품 " + money(min) + "원 이상부터 가능해요. " + money(gap) + "원 더 담아 주세요.");
-  });
   var baseGap = Math.max(0, zoneInfo().min - base);
   return {
     base: base,
     egg: egg,
     baseGap: baseGap,
     strawberryGap: strawberryGap,
-    cityOnly: state.zone !== "city" && Object.keys(totals).length > 0,
-    gap: Math.max(baseGap, strawberryGap, bulkGap),
+    gap: Math.max(baseGap, strawberryGap),
     notes: notes
   };
 }
@@ -639,7 +630,7 @@ function meetMin(){
   if (appleRequirement().gap) return false;
   if (state.mode === "pickup") return true;
   var req = deliveryRequirements();
-  return !req.cityOnly && req.gap === 0;
+  return req.gap === 0;
 }
 /* 주문 버튼이 잠긴 이유 (장바구니·주문서 공용) — 없으면 빈 문자열 */
 function blockReason(){
@@ -649,7 +640,6 @@ function blockReason(){
   if (ap.gap) return "다른 상품 " + money(ap.gap) + "원 더 담아 주세요";
   if (state.mode === "delivery"){
     var req = deliveryRequirements();
-    if (req.cityOnly) return "식자재는 원주 시내권만 배달돼요";
     if (req.gap) return money(req.gap) + "원 더 담으면 배달돼요";
   }
   return "";
@@ -659,16 +649,15 @@ function minOrderHtml(){
   /* 포장(픽업)은 최소주문이 따로 없다 — 사과 10kg 조건만 appleDealNoticeHtml() 이 안내한다 */
   if (state.mode === "pickup") return "";
   var z = zoneInfo(), req = deliveryRequirements();
-  if (req.gap === 0 && !req.cityOnly) return "";
+  if (req.gap === 0) return "";
   /* 시내권은 사과 10kg 조건(다른 상품 3만원)과 배달 최소주문이 같은 금액이라 안내가 겹칩니다 — 한 장만 보여 줍니다 */
   if (state.zone === "city" && appleRequirement().gap && !req.notes.length) return "";
-  var title = req.cityOnly ? "식자재는 원주 시내권만 배달돼요" : z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
+  var title = z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
   var notes = req.notes.slice();
   /* 계란 금액이 빠졌다는 것도 같이 알려 준다 — 왜 금액이 안 맞는지 손님이 알 수 있게 */
   if (req.egg) notes.push("계란 " + money(req.egg) + "원은 배달 최소주문금액에 들어가지 않아요.");
   if (!req.notes.length) notes.push(money(z.min) + "원부터 배달돼요.");
   return '<div class="mincard"><b>' + title + '</b><p>' + notes.join("<br>") + '</p>'
-    + (req.cityOnly ? '<button data-zone="city">원주 시내권으로 변경하기</button>' : '')
     + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
 }
 function todayStr(){ return koreanDateKey(); }
@@ -834,7 +823,7 @@ function matches(p){
   if (!productAvailable(p)) return false;
   if (state.filter !== "all" && p.cats.indexOf(state.filter) < 0) return false;
   var q = state.q.trim().toLowerCase();
-  if (!q) return state.filter !== "all" || !WHOLESALE_MIN[p.cats[0]];
+  if (!q) return true;
   var hay = p.name + " " + p.unit + " " + (p.origin||"") + " " + (p.desc||"") + " " + (p.tags||[]).join(" ");
   return hay.toLowerCase().indexOf(q) > -1;
 }
@@ -883,7 +872,7 @@ function rowHtml(p){
     +   (badges ? '<div class="mbadges">' + badges + '</div>' : '')
     +   '<h3>' + esc(p.name) + '</h3>'
     +   '<p class="mdesc">' + meta + '</p>'
-    +   ((egg || p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID || WHOLESALE_MIN[p.cats[0]]) && (egg || p.desc)
+    +   ((egg || p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID) && (egg || p.desc)
           ? '<p class="mdesc">' + esc(egg ? EGG_MIN_NOTE : p.desc) + '</p>' : '')
     +   '<div class="mprice">' + price + stockBadgeHtml(p) + '</div>'
     +   (sold ? '' : (p.tip ? '<p class="tip">💡 ' + esc(p.tip) + '</p>' : ''))
@@ -927,9 +916,11 @@ function dealCardHtml(p){
     ? money(fromPrice(p)) + '원<span class="from">부터</span>'
     : money(priceOf(p, 0)) + '원';
   var flag = (p.badges && p.badges[0]) ? p.badges[0][0] : "행사";
+  var lastDay = p.endsOnDate && p.endsOnDate === todayStr();
   return '<article class="dcard" data-id="' + p.id + '">'
     + '<div class="dimg">' + thumb(p)
     +   '<span class="dflag">' + esc(flag) + '</span>'
+    +   (lastDay ? '<span class="dlast">오늘까지</span>' : '')
     +   (q ? '<span class="dcnt">' + q + '</span>' : '') + '</div>'
     + '<div class="dt"><h3>' + esc(p.name) + '</h3>'
     +   '<p>' + esc((p.origin ? p.origin + " · " : "") + p.unit) + '</p>'
@@ -943,11 +934,22 @@ function renderDeals(){
   if (state.q.trim() || state.filter !== "all"){ sec.hidden = true; sec.innerHTML = ""; return; }
   var list = dealProducts().filter(function(p){ return !isSold(p); });
   if (!list.length){ sec.hidden = true; sec.innerHTML = ""; return; }
-  var h = '<div class="dh"><h2>🔥 오늘의 행사</h2><span>' + list.length + '개 · 오늘만 이 가격</span></div>'
-        + '<div class="dlist" id="dealList">';
+  var endsToday = list.some(function(p){ return p.endsOnDate && p.endsOnDate === todayStr(); });
+  var h = '<div class="dh"><h2>🔥 오늘의 행사</h2><span>' + list.length + '개 · 오늘만 이 가격</span>'
+        + (endsToday ? '<em class="dtimer" id="dealTimer">' + dealTimerText() + '</em>' : '')
+        + '</div><div class="dlist" id="dealList">';
   for (var i=0;i<list.length;i++) h += dealCardHtml(list[i]);
+  /* 담기·수량을 누를 때마다 다시 그려도 옆으로 넘겨 보던 위치가 처음으로 튀지 않게 */
+  var old = $("#dealList"), x = old ? old.scrollLeft : 0;
   sec.innerHTML = h + '</div>';
   sec.hidden = false;
+  if (x) $("#dealList").scrollLeft = x;
+}
+/* 하루 특가(endsOnDate 가 오늘) 마감까지 남은 시간 — 한국 시간 자정 기준 */
+function dealTimerText(){
+  var left = 86400000 - ((Date.now() + 9 * 3600000) % 86400000);
+  var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
+  return "⏰ 마감까지 " + (hh ? hh + "시간 " : "") + mm + "분";
 }
 
 /* ────────────────────────────────────────────────
@@ -1327,7 +1329,7 @@ function renderCart(){
   h += benefitsCardHtml();
   if (!meetMin()){
     h += minOrderHtml();
-    if (!deliveryRequirements().cityOnly && !deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
+    if (!deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
   }
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
@@ -2193,21 +2195,6 @@ function bind(){
     if (nb && nb.scrollIntoView){ try { nb.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); } catch(err){} }
   });
 
-  /* 식자재 바로가기 배너 — 식자재 채소로 바꾸고 상품 목록으로 내려간다 */
-  if ($("#bulkBan")) $("#bulkBan").addEventListener("click", function(){
-    state.filter = "bulk-veg";
-    state.q = "";
-    var qb = $("#q");
-    if (qb) qb.value = "";
-    if ($("#qClear")) $("#qClear").hidden = true;
-    renderCats(); renderDeals(); renderMenu();
-    var cb = $("#catIn [data-cat='bulk-veg']");
-    if (cb && cb.scrollIntoView){ try { cb.scrollIntoView({block:"nearest", inline:"center", behavior:"smooth"}); } catch(err){} }
-    var mh = $(".mhead"), mm = $("#menuList");
-    if (mh && mh.scrollIntoView){ try { mh.scrollIntoView({block:"start", behavior:"smooth"}); } catch(err){} }
-    else if (mm && mm.scrollIntoView) mm.scrollIntoView();
-  });
-
   /* 검색 */
   var q = $("#q"), t = null;
   q.addEventListener("input", function(){
@@ -2421,6 +2408,7 @@ function init(){
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
   var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr();
+  setInterval(function(){ var dt = $("#dealTimer"); if (dt) dt.textContent = dealTimerText(); }, 30000);
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow(), psd = pickupSameDayOrderable();
     /* 자정이 지나면(endsOnDate 특가 종료·새 행사 시작) 목록을 다시 그린다 */
