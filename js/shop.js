@@ -746,12 +746,18 @@ function save(){
     else localStorage.removeItem(BANANA_KEY);
   } catch(e){}
 }
-var LEGACY_STRAWBERRY_IDS = ["strawberry-4x5", "strawberry-3x5", "strawberry-3x4"];
+/* 옵션 상품을 따로 나눈 경우 — 예전 장바구니·지난 주문의 (상품, 옵션 번호)를 새 상품으로 옮긴다
+   딸기(2026-11-25) · 안동 부사사과 15개/10kg/A급 10kg(2026-11-26) */
+var LEGACY_SPLITS = {
+  strawberry: ["strawberry-4x5", "strawberry-3x5", "strawberry-3x4"],
+  apple: ["apple-15", "apple-10kg", "apple-a-10kg"]
+};
 function migrateLegacyStrawberryLine(line){
-  if (!line || line.pid !== "strawberry") return line;
+  var ids = line && LEGACY_SPLITS[line.pid];
+  if (!ids) return line;
   var oi = Number(line.oi || 0);
-  if (!Number.isInteger(oi) || oi < 0 || oi >= LEGACY_STRAWBERRY_IDS.length) return null;
-  return {pid:LEGACY_STRAWBERRY_IDS[oi], oi:0, qty:line.qty};
+  if (!Number.isInteger(oi) || oi < 0 || oi >= ids.length) return null;
+  return {pid:ids[oi], oi:0, qty:line.qty};
 }
 function load(){
   try {
