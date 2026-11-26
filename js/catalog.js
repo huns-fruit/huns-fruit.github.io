@@ -236,7 +236,9 @@ var PRODUCTS = [
   P({id:"seasoned-soup-sprouts-340g", name:"양념스프담은 콩나물", unit:"340g", cats:["veg"], price:1600, tags:["콩나물","양념스프"]}),
   P({id:"chamsari-mung-sprouts-400g", name:"참살이 숙주", unit:"400g", cats:["veg"], price:1700, tags:["숙주","참살이"]}),
 
-  /* ── 계란 ── */
+  /* ── 계란 (행사) ──
+     계란 금액은 배달 최소주문금액(시내 3만 원·외곽 5만 원)과 바나나 100원 이벤트 3만 원 조건에서 빠진다 (shop.js EGG_CAT).
+     포장(매장픽업)은 최소주문이 없어 계란만 담아도 된다. */
   P({id:"egg-large-20261125", name:"대란", unit:"1판 (30구)", cats:["egg"], img:"egg",
      origin:"국내산", price:5000, stock:4, startsOnSale:true}),
   P({id:"egg-xl-20261125", name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg",
@@ -312,7 +314,7 @@ var CATS = [
   {key:"deal", label:"🔥 오늘특가", title:"오늘의 특가"},
   {key:"fruit", label:"🍓 과일", title:"과일"},
   {key:"veg", label:"🥦 채소", title:"신선 채소"},
-  {key:"egg", label:"🥚 계란", title:"계란"},
+  {key:"egg", label:"🥚 계란", title:"계란 · 배달 최소주문금액 제외"},
   {key:"bulk-veg", label:"식자재 채소", title:"식자재 채소 · 원주 시내 배달 5만 원 이상", startsOnSale:true},
   {key:"bulk-fruit", label:"식자재 과일", title:"식자재 과일 · 원주 시내 배달 10만 원 이상", startsOnSale:true}
 ];

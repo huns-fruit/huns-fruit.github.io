@@ -27,6 +27,12 @@ var PICKUP_MIN = 15000;
    사과 금액은 최소주문금액·쿠폰·바나나 이벤트 조건 계산에서 완전히 빠진다 (배달·포장 공통). */
 var APPLE_DEAL_ID = "apple-10kg-deal";
 var APPLE_ADDON_MIN = 30000;
+/* 행사 계란 — 계란 카테고리(cats 에 "egg" 가 든 상품) 금액은 배달 최소주문금액(시내 3만 원·외곽 5만 원)과
+   바나나 100원 이벤트의 3만 원 조건 계산에서 빠진다 (2026-11-26 사장님 지시 "계란도 지금행사니까 3만원최소주문금액에서 빼버려").
+   계란만 할인가로 담아 무료배달 최소주문을 채우는 것을 막는 것이 목적이다.
+   포장(매장픽업)은 원래 최소주문이 없어 계란만 담아도 되고, 포장 1,000원 쿠폰(1.5만 원)·사과 10kg 조건은 그대로 둔다. */
+var EGG_CAT = "egg";
+var EGG_MIN_NOTE = "계란 금액은 배달 최소주문금액에서 빠져요";
 var COUPON_KEY = "hoonie_retail_pickup_coupon_v1";
 /* 오픈 기념 바나나 100원도 포장 쿠폰과 똑같이 하루 1회 — 사용한 날짜를 기기에 남긴다 */
 var BANANA_KEY = "hoonie_retail_banana_event_v1";   // {"date":"2026-11-24"}
@@ -557,6 +563,19 @@ function subtotal(){ var s=0; for (var i=0;i<state.cart.length;i++) s += linePri
 /* ── 사과 10kg 특가 ─────────────────────────────
    사과 금액은 결제 금액에는 들어가지만, 최소주문금액·포장 쿠폰·바나나 이벤트 조건은
    '다른 상품' 합계(otherSubtotal)로만 본다. 사과를 담았으면 다른 상품 30,000원 이상이 조건이다. */
+/* 계란(행사) 상품인지 — cats 에 "egg" 가 들어 있으면 계란으로 본다 */
+function isEggProduct(p){ return !!p && (p.cats || []).indexOf(EGG_CAT) > -1; }
+/* 사과 10kg 특가·행사 계란을 뺀 일반 상품 합계 —
+   배달 최소주문금액(시내 3만 원·외곽 5만 원)과 바나나 100원 이벤트의 3만 원 조건은 이 금액으로 본다. */
+function deliveryBaseSubtotal(){
+  var s = 0;
+  for (var i=0;i<state.cart.length;i++){
+    var l = state.cart[i], p = byId(l.pid);
+    if (!p || p.id === APPLE_DEAL_ID || isEggProduct(p)) continue;
+    s += linePrice(l) * l.qty;
+  }
+  return s;
+}
 function otherSubtotal(){
   var s = 0;
   for (var i=0;i<state.cart.length;i++){
@@ -588,17 +607,19 @@ function zoneInfo(){ return state.mode === "pickup" ? ZONES.pickup : ZONES[state
 var STRAWBERRY_ADDON_MIN = 15000;
 
 function deliveryRequirements(){
-  var totals = {}, hasBox = false, otherTotal = 0, base = 0;
+  var totals = {}, hasBox = false, otherTotal = 0, egg = 0;
   state.cart.forEach(function(line){
     var p = byId(line.pid), amount = linePrice(line) * line.qty;
     /* 사과 10kg 특가 금액은 최소주문금액 계산에서 완전히 제외 — 조건은 appleRequirement() 가 따로 본다 */
     if (p.id === APPLE_DEAL_ID) return;
-    base += amount;
+    /* 행사 계란 금액도 배달 최소주문금액에는 들어가지 않는다 (계란만 담아 무료배달을 채우지 못하게) */
+    if (isEggProduct(p)){ egg += amount; otherTotal += amount; return; }
     if (p.id === STRAWBERRY_BOX) hasBox = true;
     else otherTotal += amount;
     var category = p.cats[0];
     if (WHOLESALE_MIN[category]) totals[category] = (totals[category] || 0) + amount;
   });
+  var base = deliveryBaseSubtotal();
   var strawberryGap = hasBox ? Math.max(0, STRAWBERRY_ADDON_MIN - otherTotal) : 0;
   var bulkGap = 0, notes = [];
   if (strawberryGap) notes.push("특가 딸기 배달은 다른 상품을 15,000원 이상 함께 주문해 주세요. 다른 상품 " + money(strawberryGap) + "원 더 담아 주세요.");
@@ -611,6 +632,7 @@ function deliveryRequirements(){
   var baseGap = Math.max(0, zoneInfo().min - base);
   return {
     base: base,
+    egg: egg,
     baseGap: baseGap,
     strawberryGap: strawberryGap,
     cityOnly: state.zone !== "city" && Object.keys(totals).length > 0,
@@ -653,7 +675,10 @@ function minOrderHtml(){
   /* 시내권은 사과 10kg 조건(다른 상품 3만원)과 배달 최소주문이 같은 금액이라 안내가 겹칩니다 — 한 장만 보여 줍니다 */
   if (state.zone === "city" && appleRequirement().gap && !req.notes.length) return "";
   var title = req.cityOnly ? "식자재는 원주 시내권만 배달돼요" : z.short + " 배달까지 " + money(req.gap) + "원 남았어요";
-  var notes = req.notes.length ? req.notes : [money(z.min) + "원부터 배달돼요."];
+  var notes = req.notes.slice();
+  /* 계란 금액이 빠졌다는 것도 같이 알려 준다 — 왜 금액이 안 맞는지 손님이 알 수 있게 */
+  if (req.egg) notes.push("계란 " + money(req.egg) + "원은 배달 최소주문금액에 들어가지 않아요.");
+  if (!req.notes.length) notes.push(money(z.min) + "원부터 배달돼요.");
   return '<div class="mincard"><b>' + title + '</b><p>' + notes.join("<br>") + '</p>'
     + (req.cityOnly ? '<button data-zone="city">원주 시내권으로 변경하기</button>' : '')
     + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
@@ -681,7 +706,7 @@ function pickupDiscount(){
 /* ── 오픈 기념 이벤트 바나나(100원) ─────────────────────────────
    eventBase() = 사과 10kg 특가·100원 이벤트를 뺀 일반 상품 합계
    eventReady() = 배달 주문 + 3만 원 이상 (주문당 1송이 · 포장에는 적용 안 함) */
-function eventBase(){ return otherSubtotal(); }   /* 사과 10kg 특가 금액은 3만 원 조건에 넣지 않는다 */
+function eventBase(){ return deliveryBaseSubtotal(); }   /* 사과 10kg 특가·행사 계란 금액은 3만 원 조건에 넣지 않는다 */
 function eventActive(){ var date = todayStr(); return date >= OPEN_EVENT.from && date <= OPEN_EVENT.to; }
 function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase(), deliveryRequirements().strawberryGap); }
 function bananaUsedToday(){ return state.bananaDate === todayStr(); }
@@ -800,7 +825,7 @@ function renderMode(){
     el.innerHTML = (deliveryClosed() ? deliveryClosedBannerHtml() : '')
       + '<div class="banner deliv">'
       + '<b><span class="bn-ico">🛵</span>무료배달 최소주문</b>'
-      + '<small>원주 시내 30,000원 이상 · 기업·태장·우산 50,000원 이상 · 낮 12시 마감</small>'
+      + '<small>원주 시내 30,000원 이상 · 기업·태장·우산 50,000원 이상 · 계란 금액 제외 · 낮 12시 마감</small>'
       + '<div class="chips">'
       +   '<button data-zone="city"' + (state.zone === "city" ? ' class="on"' : '') + '>원주 시내권 <em>3만원 이상</em></button>'
       +   '<button data-zone="outer"' + (state.zone === "outer" ? ' class="on"' : '') + '>기업·태장·우산동 <em>5만원 이상</em></button>'
@@ -851,6 +876,7 @@ function rowAction(p){
 }
 function rowHtml(p){
   var sold = isSold(p);
+  var egg = isEggProduct(p);
   var badges = gradeChipHtml(p);
   var bs = (p.badges || []).slice(0, 2);
   for (var i=0;i<bs.length;i++) badges += '<span class="bdg ' + bs[i][1] + '">' + bs[i][0] + '</span>';
@@ -865,7 +891,8 @@ function rowHtml(p){
     +   (badges ? '<div class="mbadges">' + badges + '</div>' : '')
     +   '<h3>' + esc(p.name) + '</h3>'
     +   '<p class="mdesc">' + meta + '</p>'
-    +   ((p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID || WHOLESALE_MIN[p.cats[0]]) && p.desc ? '<p class="mdesc">' + esc(p.desc) + '</p>' : '')
+    +   ((egg || p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID || WHOLESALE_MIN[p.cats[0]]) && (egg || p.desc)
+          ? '<p class="mdesc">' + esc(egg ? EGG_MIN_NOTE : p.desc) + '</p>' : '')
     +   '<div class="mprice">' + price + stockBadgeHtml(p) + '</div>'
     +   (sold ? '' : (p.tip ? '<p class="tip">💡 ' + esc(p.tip) + '</p>' : ''))
     +   (cmt ? '<div class="cmt">💬 사장님 · ' + esc(cmt) + '</div>' : '')
@@ -1035,6 +1062,7 @@ function cartRowHtml(l){
     +   '<div class="nm">' + esc(p.name) + ' <span class="unit">' + esc(p.unit) + '</span>'
     +     (sold ? ' <span class="stockb">품절</span>' : '') + '</div>'
     +   (o ? '<div class="op">' + esc(o.label) + '</div>' : '')
+    +   (isEggProduct(p) ? '<div class="op">' + esc(EGG_MIN_NOTE) + '</div>' : '')
     +   (maxQtyOf(p) ? '<div class="op">1주문 최대 ' + maxQtyOf(p) + unitWord(p) + '까지</div>' : '')
     +   '<div class="pr"><b>' + money(linePrice(l) * l.qty) + '원</b>'
     +     '<button class="del" data-rm="' + k + '">삭제</button>'
@@ -1210,7 +1238,7 @@ function benefitsCardHtml(){
     + '<div class="bf-row"><span class="bf-ico">🎟️</span>'
     +   '<div class="bf-t"><b>포장 1,000원 할인 쿠폰</b><small>' + cSub + '</small></div>' + benefitChip(cTxt, cCls) + '</div>'
     + '<p class="bf-note">· 🍌 배달 전용과 🎟️ 포장 전용은 <b>한 주문에 함께 쓸 수 없어요</b>.<br>'
-    + '· 최소 주문금액은 <b>일반 상품 합계</b>로 계산해요 — 100원 이벤트 바나나는 포함되지 않아요.</p>'
+    + '· 최소 주문금액은 <b>일반 상품 합계</b>로 계산해요 — 100원 이벤트 바나나와 계란 금액은 포함되지 않아요.</p>'
     + '</div>';
 }
 /* ── 오픈 기념 이벤트 카드 (장바구니·주문서 공용) ── */
@@ -1291,7 +1319,7 @@ function renderCart(){
   var h = modeSegHtml();
   h += '<p class="seghint">' + (state.mode === "pickup"
       ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음<br>🕒 포장 가능 " + PICKUP_HOURS
-      : (state.zone === "city" ? "🛵 원주 시내권 · 30,000원 이상 무료배달" : "🚛 기업·태장·우산동 · 50,000원 이상 무료배달")) + '</p>';
+      : (state.zone === "city" ? "🛵 원주 시내권 · 30,000원 이상 무료배달 · 계란 금액 제외" : "🚛 기업·태장·우산동 · 50,000원 이상 무료배달 · 계란 금액 제외")) + '</p>';
   if (state.mode === "delivery"){
     h += zoneChipsHtml();
     if (deliveryClosed()) h += deliveryClosedNote(false);
@@ -1451,7 +1479,7 @@ var POLICIES = {
     title: "배송 및 교환·환불 정책",
     body: '<p class="polmeta">시행일 2026년 11월 22일 · 훈이네과일야채 단구점</p>'
       + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다. 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>15,000원 이상 포장 주문에는 1,000원 할인 쿠폰을 하루 1회 쓸 수 있습니다.</li></ul>'
-      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
+      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
       + '<h4>3. 신선식품 교환·환불</h4><p>과일·채소는 신선식품이라 받으신 날 상태를 확인해 주세요. 아래 경우에는 <b>사진 접수</b>로 알려 주시면 확인 후 <b>교환 또는 부분환불</b>로 보상해 드립니다.</p><ul><li>받은 날 상한·무른·곰팡이·파손 등 이상이 있는 경우</li><li>주문한 상품과 다르거나 수량이 모자란 경우</li><li>표시된 등급·규격과 현저히 다른 경우</li></ul>'
       + '<h4>4. 접수와 처리 절차</h4><ul><li>화면의 <b>📷 받은 상품 이상하면 사진 접수</b>를 눌러 사진(최대 3장)·품목·사유·연락처를 보내 주세요.</li><li>사장님이 사진을 확인한 뒤 연락드리고, 교환·부분환불·다음 주문 보상 중에서 알맞은 방법으로 처리합니다.</li><li>급하시면 고객센터 010-9142-1531로 전화 주세요. 접수번호(CL…)를 알려 주시면 바로 확인합니다.</li></ul>'
       + '<h4>5. 교환·환불이 어려운 경우</h4><ul><li>수령한 다음 날 이후에 알려 주신 경우(다만 보관 중 이상이 생긴 것이 확인되면 상담해 드립니다)</li><li>이미 드셨거나 조리하신 경우, 손질·보관을 잘못하신 경우</li><li>단순 변심으로 받으신 날 이후에 요청하신 경우</li></ul>'
