@@ -174,6 +174,13 @@ var PRODUCTS = [
            {label:"4kg · 6수", price:20000}],
      tags:["포도 샤인머스켓"]}),
 
+  P({id:"singobae-10", name:"신고배", unit:"10개", cats:["fruit"],
+     price:5000, tags:["신고배 배"]}),
+  P({id:"shine-3kg-4", name:"샤인머스켓", unit:"3kg · 4수", cats:["fruit"], img:"shine",
+     price:16800, tags:["포도 샤인머스켓"]}),
+  P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 7수", cats:["deal","fruit"], img:"shine",
+     badges:[["특가","hot"]], price:9900, tags:["포도 샤인머스켓"]}),
+
   P({id:"pineapple", name:"파인애플", unit:"1통", cats:["fruit"], img:"pineapple", grade:"home",
      badges:[], origin:"필리핀산", desc:"1통 그대로", price:7500, tags:["파인애플"]}),
 
