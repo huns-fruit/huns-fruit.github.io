@@ -55,11 +55,6 @@ var OPEN_EVENT = {
   bannerSub: "3만 원 이상 배달 주문 시 장바구니에서 100원에 추가할 수 있어요 · 하루 1회 · 주문당 1송이 한정"
 };
 
-
-
-
-
-
 /* ── 상품 정보(가격·품절·수량·코멘트·등급) 공유 ── */
 function catalogDoc(){
   try {
@@ -81,9 +76,20 @@ function pushStockPatch(patch){
   if (!sbOn()) return Promise.resolve();
   return sbRpc("decrement_catalog_stock", { patch: patch }).catch(function(){});
 }
+/* 5초마다 전체 상품 문서를 받지 않고, 먼저 updatedAt 숫자만 물어본 뒤 바뀌었을 때만 전체를 받는다.
+   (가벼운 조회가 실패하면 예전처럼 전체를 받아 비교한다) */
+function catalogStamp(){
+  return sbCall("app_state?key=eq." + SB_CATALOG + "&select=u:value->updatedAt").then(function(rows){
+    var u = rows && rows[0] && rows[0].u;
+    return (u === null || u === undefined) ? null : Number(u);
+  }).catch(function(){ return null; });
+}
 function pullCatalog(){
   if (!sbOn()) return Promise.resolve();
-  return corePullCatalogValue().then(function(v){
+  return catalogStamp().then(function(u){
+    if (u !== null && isFinite(u) && u <= Number(catalogDoc().updatedAt || 0)) return undefined;
+    return corePullCatalogValue();
+  }).then(function(v){
     if (!v) return;
     var local = catalogDoc();
     if (Number(v.updatedAt || 0) <= Number(local.updatedAt || 0)) return;
@@ -180,18 +186,6 @@ function syncStart(){
   window.addEventListener("online", syncPullAll);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 /* 결제 수단 — PG 연결 전까지는 무통장입금(계좌입금)만 받는다.
    다른 수단은 화면에 'PG 준비 중'으로만 보이고 고를 수 없다(disabled). */
 var PAY_ONLY = "bank";
@@ -254,10 +248,6 @@ function reqPickupChips(){
         ? ["오늘 오후에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]
         : [pickupDayWord() + " 오전에 갈게요", "봉투에 담아 주세요", "계산대에서 바로 받을게요"]);
 }
-
-
-
-
 
 /* ── 사장님 페이지가 고친 상품 정보 반영 ── */
 function catItems(){
@@ -514,8 +504,6 @@ function pushNewOrderAlert(ord){
     }).catch(function(){});
   } catch(e){}          /* 알림 실패가 주문을 막지 않는다 */
 }
-
-
 
 function statusMsg(o){
   var st = oStatus(o), pick = o.mode === "pickup";
@@ -785,8 +773,6 @@ function load(){
   } catch(e){}
 }
 function markCouponUsed(){ state.couponDate = todayStr(); save(); }
-
-
 
 /* ────────────────────────────────────────────────
    6. 배달 / 포장 탭 · 안내 배너
@@ -1159,7 +1145,7 @@ function renderGradeGuide(){
 function fillCardHtml(){
   var gap = remaining(), h = '';
   h += '<div class="fillcard" id="fillCard"><b>1,500원~3,000원 채소 하나 더 담고 무료배달 받기</b>'
-    +  '<p>무료배달까지 ' + money(gap) + '원 남았아요 · 아래에서 바로 담아 보세요</p><div class="filllist">';
+    +  '<p>무료배달까지 ' + money(gap) + '원 남았어요 · 아래에서 바로 담아 보세요</p><div class="filllist">';
   for (var i=0;i<FILL_IDS.length;i++){
     var p = byId(FILL_IDS[i]);
     if (!p) continue;
@@ -1770,7 +1756,7 @@ function renderCheckout(){
     + '</section>';
 
   h += '<div class="band"></div>'
-    + '<section class="csec"><h3><span class="sn">3</span>주문 메뉴 <Span style="font-size:13px;color:#8F8F8F;font-weight:700">' + count() + '개</Span></h3>'
+    + '<section class="csec"><h3><span class="sn">3</span>주문 메뉴 <span style="font-size:13px;color:#8F8F8F;font-weight:700">' + count() + '개</span></h3>'
     + '<div class="oitems">';
   for (var i=0;i<state.cart.length;i++){
     var l = state.cart[i], p = byId(l.pid), o = optOf(p, l.oi);
@@ -1795,7 +1781,7 @@ function renderCheckout(){
   }
   /* 무통장입금만 받으므로 계좌 박스는 누르지 않아도 항상 보이게 */
   h += '</div>' + bankBoxHtml(payable()) + rcptHtml()
-    + '<div class="agree' + (f.agree ? '' : '') + '" id="agreeBox">'
+    + '<div class="agree" id="agreeBox">'
     + '<input type="checkbox" id="agreeCk"' + (f.agree ? ' checked' : '') + '>'
     + '<span><b>주문 내용을 확인했고 주문에 동의합니다.</b><br>주문서를 보내면 사장님이 확인한 뒤 연락드려요.</span>'
     + '</div>'
@@ -2115,7 +2101,7 @@ function showDone(ord){
   $("#doneOk").addEventListener("click", function(){
     state.cart = [];
     state.banana = false;
-    state.form = {name: state.form.name, phone: state.form.phone, addr: "", memo: "", pay: state.form.pay, agree: false,
+    state.form = {name: state.form.name, phone: state.form.phone, addr: "", gate: "", memo: "", pay: state.form.pay, agree: false,
                   depositor: "", receiptType: "none", receiptNo: ""};
     save();
     renderAll();
@@ -2428,12 +2414,14 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr();
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow(), psd = pickupSameDayOrderable();
-    if (saleStarted() !== wasSaleStarted || eventActive() !== wasEventActive){
+    /* 자정이 지나면(endsOnDate 특가 종료·새 행사 시작) 목록을 다시 그린다 */
+    if (saleStarted() !== wasSaleStarted || eventActive() !== wasEventActive || todayStr() !== wasDay){
       wasSaleStarted = saleStarted();
       wasEventActive = eventActive();
+      wasDay = todayStr();
       syncBanana(true);
       renderCats();
       renderAll();
