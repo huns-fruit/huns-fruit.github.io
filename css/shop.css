@@ -198,6 +198,7 @@ body.hasbar{padding-bottom:84px}
 .dh{display:flex;align-items:baseline;gap:7px;padding:0 16px 9px;flex-wrap:wrap}
 .dh h2{margin:0;font-size:17.5px;font-weight:800;letter-spacing:-.5px}
 .dh span{font-size:12px;color:var(--ink3);font-weight:700;letter-spacing:-.2px}
+.dh .dtimer{margin-left:auto;font-style:normal;font-size:12.5px;font-weight:800;color:var(--red);background:#FFF1EF;border-radius:999px;padding:3px 9px;letter-spacing:-.2px;white-space:nowrap}
 .dlist{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 8px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .dlist::-webkit-scrollbar{display:none}
 .deals .dcard{flex:0 0 46%;max-width:180px;scroll-snap-align:start;border:1.5px solid #FFDDD8;border-radius:14px;background:#fff;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 6px rgba(232,69,60,.07)}
@@ -205,6 +206,7 @@ body.hasbar{padding-bottom:84px}
 .deals .dcard .dimg{position:relative;width:100%;aspect-ratio:4/3;background:var(--bg);overflow:hidden}
 .deals .dcard .dimg img{width:100%;height:100%;object-fit:cover}
 .deals .dcard .dflag{position:absolute;left:8px;top:8px;padding:3px 8px;border-radius:8px;background:var(--red);color:#fff;font-size:11.5px;font-weight:800;letter-spacing:-.2px;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.deals .dcard .dlast{position:absolute;left:8px;bottom:8px;padding:2px 7px;border-radius:7px;background:rgba(26,26,26,.78);color:#fff;font-size:11px;font-weight:800;letter-spacing:-.2px}
 .deals .dcard .dcnt{position:absolute;right:8px;top:8px;min-width:24px;height:24px;padding:0 6px;border-radius:999px;background:var(--mint);color:#fff;font-size:12.5px;font-weight:800;display:grid;place-items:center;box-shadow:0 1px 4px rgba(0,0,0,.2)}
 .deals .dcard .dt{padding:9px 11px 0;flex:1 1 auto;min-width:0}
 .deals .dcard h3{margin:0;font-size:16px;font-weight:800;letter-spacing:-.4px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -446,15 +448,6 @@ body.hasbar{padding-bottom:84px}
 .reorder:active{background:var(--mint-l)}
 .reorder.cart{margin:14px 0 0;width:100%;height:46px;font-size:14.5px}
 
-/* ── 식자재 바로가기 배너 (2026-11-26) ── */
-.bulkban{display:flex;align-items:center;gap:11px;width:calc(100% - 32px);margin:12px 16px 0;padding:12px 14px;border-radius:12px;
-  border:2px solid var(--mint);background:linear-gradient(90deg,var(--mint-l),#fff);text-align:left;letter-spacing:-.3px}
-.bulkban:active{background:var(--mint-l)}
-.bulkban .bb-ico{flex:0 0 auto;font-size:24px;line-height:1}
-.bulkban .bb-t{flex:1 1 auto;min-width:0}
-.bulkban .bb-t b{display:block;font-size:16px;font-weight:800;color:#0B7C77;line-height:1.32}
-.bulkban .bb-t small{display:block;margin-top:2px;font-size:12.5px;font-weight:700;color:#2C7F7A}
-.bulkban .bb-go{flex:0 0 auto;font-size:14px;font-weight:800;color:#fff;background:var(--mint-d);border-radius:9px;padding:9px 11px;white-space:nowrap}
 .menus .mhead{scroll-margin-top:62px}   /* 고정 카테고리 탭에 제목이 가리지 않게 */
 
 /* ── 공동현관 비밀번호 (주문서 · 배달만) ── */
