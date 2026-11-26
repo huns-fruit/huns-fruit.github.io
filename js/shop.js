@@ -437,9 +437,10 @@ function loadOrders(){
   try { var d = JSON.parse(localStorage.getItem(ORDERS_KEY) || "[]"); state.orders = Array.isArray(d) ? d : []; }
   catch(e){ state.orders = []; }
   state.orders.forEach(function(o){ if (o) o.status = oStatus(o); });
-  /* 이 화면은 손님용 — 사장님이 같은 브라우저로 열어 받아 둔 다른 손님 주문은 보여주지 않는다 */
+  /* 이 화면은 손님용 — 사장님이 같은 브라우저로 열어 받아 둔 다른 손님 주문은 보여주지 않는다
+     (주문한 적 없는 기기에서도 사장님 화면이 캐시한 다른 손님 주문이 새지 않도록 항상 내 주문만 남긴다) */
   var mine = myOrderNos();
-  if (mine.length) state.orders = state.orders.filter(function(o){ return mine.indexOf(o.no) > -1; });
+  state.orders = state.orders.filter(function(o){ return o && mine.indexOf(o.no) > -1; });
 }
 function saveOrders(){
   try {
