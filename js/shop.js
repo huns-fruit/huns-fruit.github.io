@@ -1507,6 +1507,17 @@ function closePolicy(){
   el.classList.remove("open");
   el.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
+  /* 주소로 열었던 정책(#policy-…)은 닫을 때 주소에서 지운다 */
+  if (/^#policy-(terms|privacy|shipping)$/.test(String(location.hash || ""))){
+    try { history.replaceState(null, "", location.pathname + location.search); } catch(e){}
+  }
+}
+/* 정책을 주소로 바로 열기 — #policy-terms / #policy-privacy / #policy-shipping
+   (토스페이먼츠처럼 '환불 정책 URL'을 요구하는 곳에 바로 쓸 링크를 만들기 위한 것, 2026-11-26) */
+function openPolicyFromHash(){
+  var m = String(location.hash || "").match(/^#policy-(terms|privacy|shipping)$/);
+  if (!m) return;
+  openPolicy(m[1]);
 }
 function claimItemLabel(pid){
   var p = byId(pid);
@@ -2286,6 +2297,9 @@ function bind(){
     var el = $("#sheetPolicy");
     if (e.key === "Escape" && el && el.classList.contains("open")) closePolicy();
   });
+  /* #policy-shipping 같은 주소로 들어오면 그 정책을 바로 펼친다 */
+  window.addEventListener("hashchange", openPolicyFromHash);
+  openPolicyFromHash();
 
   /* 사진 접수 */
   var cf = $("#claimFile");
