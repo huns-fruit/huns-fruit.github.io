@@ -71,21 +71,51 @@ var PRODUCTS = [
   P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4", endsOnSale:true,
      cats:["deal","fruit"], img:"strawberry", price:40000, stock:0,
      badges:[["50박스 한정","hot"]], desc:"포장 단독 구매 가능 · 배달은 다른 상품 15,000원 이상 함께 주문"}),
+  /* ── 11/27 특가 ── 사장님이 불러 준 순서대로 '오늘의 행사'와 상품 목록 맨 위에 노출한다.
+     endsOnDate 가 붙은 것은 11/27 하루 특가라 11/28 0시에 자동으로 내려간다.
+     신고배·그린키위·샤인머스켓·애호박·단호박·왕란은 평소 가격과 같아 날짜 없이 행사 칸에 둔다. */
+  P({id:"apple-5kg-deal-1127", name:"안동 부사사과", unit:"5kg (24~26알 가량)", cats:["deal","fruit"], img:"apple",
+     badges:[["특가","hot"]], origin:"안동", price:9900, endsOnDate:"2026-11-27", tags:["사과 부사"]}),
+  P({id:"dragonfruit-white-4-1127", name:"화이트 용과", unit:"4개", cats:["deal","fruit"],
+     badges:[["특가","hot"]], origin:"베트남산", price:9900, endsOnDate:"2026-11-27", tags:["용과 드래곤후르츠"]}),
+  P({id:"singobae-10", name:"신고배", unit:"10개", cats:["deal","fruit"],
+     badges:[["특가","hot"]], price:5000, tags:["신고배 배"]}),
+  P({id:"greenkiwi", name:"그린키위", unit:"20알", cats:["deal","fruit"], img:"kiwi", grade:"home",
+     badges:[["특가","hot"]], origin:"뉴질랜드산", desc:"새콤한 그린키위 20알", price:8000, tags:["키위"]}),
+  P({id:"bansee-25-deal-1127", name:"반시", unit:"2.5kg", cats:["deal","fruit"], img:"persimmon",
+     badges:[["특가","hot"]], origin:"국내산", price:3900, endsOnDate:"2026-11-27", tags:["감 홍시"]}),
+  P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 7수", cats:["deal","fruit"], img:"shine",
+     badges:[["특가","hot"]], price:9900, tags:["포도 샤인머스켓"]}),
+  P({id:"danhobak", name:"단호박", unit:"1개", cats:["deal","veg"],
+     badges:[["특가","hot"]], origin:"국내산", price:1000, tags:["호박 단호박"]}),
+  P({id:"aehobak", name:"애호박", unit:"1개", cats:["deal","veg"], img:"aehobak", badges:[["특가","hot"]], origin:"국내산", desc:"1개", price:1000, tags:["호박"]}),
+  P({id:"egg-king", name:"판없는 왕란", unit:"1판 (30구)", cats:["egg","deal"], img:"egg", grade:"home",
+     badges:[["특가","hot"]], origin:"국내산", desc:"판 없이 알만 담은 왕란 30구", price:6000, tags:["계란 달걀 왕란"],
+     tip:"냉장고 안쪽 칸에 두세요"}),
+
+  /* ── 안동 부사사과 일반 신선행사 — 옵션 대신 3개 상품으로 (2026-11-26) ── */
+  P({id:"apple-15", name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"normal",
+     origin:"안동", desc:"가정용 15개", price:7900, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
+  P({id:"apple-10kg", name:"안동 부사사과", unit:"10kg · 한 상자", cats:["fruit"], img:"apple", grade:"normal",
+     origin:"안동", price:20000, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
+  P({id:"apple-a-10kg", name:"안동 부사사과 A급", unit:"10kg · 품질보증", cats:["fruit"], img:"apple", grade:"A",
+     origin:"안동", price:35000, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
+
   /* ── 내일(11/26) 특가 5종 ── 이 순서대로 '오늘의 행사'와 상품 목록 맨 위에 노출한다.
      사과 10kg만 최소주문금액에서 빠지고(shop.js APPLE_DEAL_ID), 단감·토마토·반시·귤은 일반 상품처럼 최소주문금액에 들어간다. */
 
   /* 사과 10kg 특가 — 다른 상품 30,000원 이상 함께 주문해야 하고, 최소주문금액 계산에서는 빠진다 (shop.js APPLE_DEAL_ID) */
-  P({id:"apple-10kg-deal", name:"사과 10kg 특가", unit:"1박스 (10kg)", cats:["deal","fruit"], img:"apple",
+  P({id:"apple-10kg-deal", endsOnSale:true, name:"사과 10kg 특가", unit:"1박스 (10kg)", cats:["deal","fruit"], img:"apple",
      badges:[["특가","hot"],["최대 3박스","fresh"]], price:16800, stock:50, maxQty:3, endsOnDate:"2026-11-26", 
      desc:"다른 상품 30,000원 이상 함께 주문 시 구매 가능 · 1주문 최대 3박스", tags:["사과 부사"]}),
 
-  P({id:"persimmon-5dai-deal", name:"단감 5다이", unit:"10kg · 5다이", cats:["deal","fruit"], img:"persimmon",
+  P({id:"persimmon-5dai-deal", endsOnSale:true, name:"단감 5다이", unit:"10kg · 5다이", cats:["deal","fruit"], img:"persimmon",
      badges:[["특가","hot"]], origin:"국내산", desc:"아삭한 단감 10kg · 5다이 한 상자", price:15000, endsOnDate:"2026-11-26", tags:["감 단감"]}),
 
   P({id:"tomato-retail-23", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["deal","fruit"], img:"tomato",
      badges:[["오늘 특가","hot"]], desc:"가격 거품 뺀 실속 5kg (2~3번과)", price:6900, endsOnDate:"2026-11-26", tags:["토마토"]}),
 
-  P({id:"bansee-5kg-deal", name:"반시", unit:"5kg", cats:["deal","fruit"], img:"persimmon",
+  P({id:"bansee-5kg-deal", endsOnSale:true, name:"반시", unit:"5kg", cats:["deal","fruit"], img:"persimmon",
      badges:[["특가","hot"]], origin:"국내산", desc:"부드럽게 익은 반시 5kg 특가", price:6900, endsOnDate:"2026-11-26", tags:["감 홍시"]}),
 
   /* 가정용 감귤 B급 2L — 내일 행사 7,900원. L(5kg)은 일반 과일 목록에 9,900원으로 따로 둔다(tangerine-home-l) */
@@ -163,7 +193,7 @@ var PRODUCTS = [
      badges:[], origin:"국내산", desc:"샤인머스켓과 비슷한 포도 · 망고스틴 맛과 식감", price:15000, tags:["포도 샤인 뉴스틴"],
      tip:"망고스틴을 연상시키는 맛과 식감! 샤인머스켓과 비슷한 포도 · 당도 자신!"}),
 
-  P({id:"bansee", name:"반시", unit:"2.5kg · M", cats:["fruit"], img:"persimmon", grade:"C",
+  P({id:"bansee", startsOnDate:"2026-11-28", name:"반시", unit:"2.5kg · M", cats:["fruit"], img:"persimmon", grade:"C",
      badges:[], origin:"국내산", desc:"M 사이즈 2.5kg", price:5000, tags:["감 홍시"]}),
 
   P({id:"shine", name:"샤인머스켓", unit:"송이", cats:["fruit"], img:"shine", grade:"home",
@@ -174,12 +204,8 @@ var PRODUCTS = [
            {label:"4kg · 6수", price:20000}],
      tags:["포도 샤인머스켓"]}),
 
-  P({id:"singobae-10", name:"신고배", unit:"10개", cats:["fruit"],
-     price:5000, tags:["신고배 배"]}),
   P({id:"shine-3kg-4", name:"샤인머스켓", unit:"3kg · 4수", cats:["fruit"], img:"shine",
      price:16800, tags:["포도 샤인머스켓"]}),
-  P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 7수", cats:["deal","fruit"], img:"shine",
-     badges:[["특가","hot"]], price:9900, tags:["포도 샤인머스켓"]}),
 
   P({id:"pineapple", name:"파인애플", unit:"1통", cats:["fruit"], img:"pineapple", grade:"home",
      badges:[], origin:"필리핀산", desc:"1통 그대로", price:7500, tags:["파인애플"]}),
@@ -187,7 +213,9 @@ var PRODUCTS = [
   P({id:"pomegranate", name:"석류", unit:"1통", cats:["fruit"], img:"pomegranate", grade:"home",
      badges:[], origin:"미국산", desc:"알 굵은 석류", price:5000, tags:["석류"]}),
 
-  P({id:"apple", name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"home",
+  /* 옵션 3개짜리 사과는 2026-11-26 사장님 지시로 3개 상품(apple-15 · apple-10kg · apple-a-10kg)으로 나눴다.
+     지난 주문·장바구니 기록 때문에 데이터만 남기고 판매는 내린다 (shop.js LEGACY_SPLITS 가 새 상품으로 옮겨 담는다). */
+  P({id:"apple", endsOnSale:true, name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"home",
      ogrades:["home","home","A"],
      badges:[], origin:"안동", desc:"아삭한 안동 부사", stock:40, tip:"흐르는 물에 씻어 껍질째 드세요",
      opts:[{label:"15개", sub:"가정용", price:9900},
@@ -198,8 +226,6 @@ var PRODUCTS = [
   P({id:"orange", name:"오렌지", unit:"1봉지", cats:["fruit"], img:"orange", grade:"home",
      badges:[], origin:"호주산", desc:"1봉지 특가", price:9900, tags:["오렌지"]}),
 
-  P({id:"greenkiwi", name:"그린키위", unit:"1팩", cats:["fruit"], img:"kiwi", grade:"home",
-     badges:[], origin:"뉴질랜드산", desc:"새콤한 그린키위", price:8000, tags:["키위"]}),
 
   P({id:"goldkiwi-local-12", name:"국내산 골드키위", unit:"12개", cats:["fruit"], img:"kiwi",
      badges:[], origin:"국내산", price:9900, tags:["키위"]}),
@@ -219,7 +245,6 @@ var PRODUCTS = [
   P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"],
      price:3000, startsOnSale:true}),
   P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:2000, stock:20, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
-  P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1000, tags:["호박"]}),
   P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["부추"]}),
   P({id:"cheongyang", name:"청양고추", unit:"1팩", cats:["veg"], img:"cheongyang", badges:[], origin:"국내산", desc:"매콤한 청양고추", price:2000, tags:["고추"]}),
   P({id:"kkwari", name:"꽈리고추", unit:"1팩", cats:["veg"], img:"kkwari", badges:[], origin:"국내산", desc:"1팩", price:2000, tags:["고추"]}),
@@ -250,10 +275,7 @@ var PRODUCTS = [
      origin:"국내산", price:5000, stock:4, startsOnSale:true}),
   P({id:"egg-xl-20261125", name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg",
      origin:"국내산", price:6000, stock:0, startsOnSale:true}),
-  P({id:"egg-xl", endsOnSale:true, name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg", badges:[], origin:"국내산", desc:"30구 1판", price:6000, stock:8, tags:["계란 달걀"], tip:"냉장고 안쪽 칸에 두세요"}),
-  P({id:"egg-king", name:"판없는 왕란", unit:"1판 (30구)", cats:["egg"], img:"egg", grade:"home",
-     badges:[["특가","hot"]], origin:"국내산", desc:"판 없이 알만 담은 왕란 30구", price:6000, tags:["계란 달걀 왕란"],
-     tip:"냉장고 안쪽 칸에 두세요"})
+  P({id:"egg-xl", endsOnSale:true, name:"특란", unit:"1판 (30구)", cats:["egg"], img:"egg", badges:[], origin:"국내산", desc:"30구 1판", price:6000, stock:8, tags:["계란 달걀"], tip:"냉장고 안쪽 칸에 두세요"})
 ];
 
 function bulkProduct(category, item){
