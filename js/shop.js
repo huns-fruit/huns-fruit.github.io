@@ -294,6 +294,38 @@ function gradeOf(p, oi){
   return p.grade || null;
 }
 
+/* ── 매장 포장만 (배달 불가) ──
+   C급 떨이 상품(알타리)은 상태가 고르지 않아 배달하지 않고 매장에서 받아 가시게 한다 (2026-11-27 사장님 지시).
+   상품에 pickupOnly:true 를 달면 배달 주문에서는 주문 버튼이 잠기고 포장으로 바꿔야 주문된다.
+   C급 상품 전부(대봉감 가정용 등)에 걸려면 아래 함수에 (gradeOf(p, oi) === "C") 를 더하면 된다. */
+function isPickupOnly(p, oi){
+  if (!p) return false;
+  if (p.pickupOnly === true) return true;
+  return !!(p.opts && p.opts[oi] && p.opts[oi].pickupOnly === true);
+}
+function pickupOnlyNames(){
+  var names = [];
+  for (var i=0;i<state.cart.length;i++){
+    var p = byId(state.cart[i].pid);
+    if (p && isPickupOnly(p, state.cart[i].oi) && names.indexOf(p.name) < 0) names.push(p.name);
+  }
+  return names;
+}
+function pickupOnlyIssue(){
+  var n = pickupOnlyNames();
+  return n.length ? n.join("·") + " 매장 포장만 주문할 수 있어요" : "";
+}
+/* 장바구니·주문서 공용 안내 카드 — 배달 모드에 포장 전용 상품이 담겼을 때 */
+function pickupOnlyCardHtml(){
+  if (state.mode !== "delivery") return "";
+  var n = pickupOnlyNames();
+  if (!n.length) return "";
+  return '<div class="mincard"><b>🏪 배달이 안 되는 상품이 있어요 · ' + esc(n.join("·")) + '</b>'
+    + '<p>C급 떨이 상품이라 매장에서 받아 가실 수 있어요. 아래 버튼으로 포장으로 바꾸면 최소주문 없이 바로 주문돼요.<br>'
+    + '배달로 받으시려면 장바구니에서 빼 주세요.</p>'
+    + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
+}
+
 
 function stockBadgeHtml(p){
   if (isSold(p)) return "";
@@ -640,6 +672,8 @@ function blockReason(){
   var ap = appleRequirement();
   if (ap.gap) return "다른 상품 " + money(ap.gap) + "원 더 담아 주세요";
   if (state.mode === "delivery"){
+    var po = pickupOnlyIssue();
+    if (po) return po;
     var req = deliveryRequirements();
     if (req.gap) return money(req.gap) + "원 더 담으면 배달돼요";
   }
@@ -875,6 +909,7 @@ function rowHtml(p){
     +   '<p class="mdesc">' + meta + '</p>'
     +   ((egg || p.id === STRAWBERRY_BOX || p.id === APPLE_DEAL_ID) && (egg || p.desc)
           ? '<p class="mdesc">' + esc(egg ? EGG_MIN_NOTE : p.desc) + '</p>' : '')
+    +   (isPickupOnly(p, 0) ? '<p class="mdesc">🏪 C급 · 매장 포장만 (배달 불가)</p>' : '')
     +   '<div class="mprice">' + price + stockBadgeHtml(p) + '</div>'
     +   (sold ? '' : (p.tip ? '<p class="tip">💡 ' + esc(p.tip) + '</p>' : ''))
     +   (cmt ? '<div class="cmt">💬 사장님 · ' + esc(cmt) + '</div>' : '')
@@ -981,7 +1016,10 @@ function add(pid, oi, qty){
   syncBanana();
   save();
   renderAll();
-  toast(p.name + (p.opts ? " · " + p.opts[oi].label : "") + " 담았어요");
+  var nm = p.name + (p.opts ? " · " + p.opts[oi].label : "");
+  toast(isPickupOnly(p, oi) && state.mode === "delivery"
+    ? nm + " · C급이라 배달이 안 돼요 (매장 포장만)"
+    : nm + " 담았어요");
 }
 function setQty(key, delta){
   for (var i=0;i<state.cart.length;i++){
@@ -1058,6 +1096,7 @@ function cartRowHtml(l){
     +     (sold ? ' <span class="stockb">품절</span>' : '') + '</div>'
     +   (o ? '<div class="op">' + esc(o.label) + '</div>' : '')
     +   (isEggProduct(p) ? '<div class="op">' + esc(EGG_MIN_NOTE) + '</div>' : '')
+    +   (isPickupOnly(p, l.oi) ? '<div class="op">🏪 C급 · 매장 포장만 (배달 불가)</div>' : '')
     +   (maxQtyOf(p) ? '<div class="op">1주문 최대 ' + maxQtyOf(p) + unitWord(p) + '까지</div>' : '')
     +   '<div class="pr"><b>' + money(linePrice(l) * l.qty) + '원</b>'
     +     '<button class="del" data-rm="' + k + '">삭제</button>'
@@ -1320,6 +1359,7 @@ function renderCart(){
     if (deliveryClosed()) h += deliveryClosedNote(false);
   }
   h += appleDealNoticeHtml();
+  h += pickupOnlyCardHtml();
   h += slotBoxHtml();
   h += '<div class="cartlist">';
   for (var i=0;i<state.cart.length;i++) h += cartRowHtml(state.cart[i]);
@@ -1742,6 +1782,7 @@ function renderCheckout(){
     h += zoneChipsHtml();
     if (deliveryClosed()) h += deliveryClosedNote(true);
     h += minOrderHtml();
+    h += pickupOnlyCardHtml();
     h += '<div class="field" id="fAddr" style="margin-top:12px"><label for="ckAddr">배달 주소</label>'
       + '<input id="ckAddr" value="' + esc(f.addr) + '" placeholder="예: 단구동 ○○아파트 101동 1001호" autocomplete="street-address">'
       + '<span class="err">배달 주소를 입력해 주세요</span></div>';
@@ -1879,6 +1920,8 @@ async function pay(){
   var f = state.form;
   var issue = cartStockIssue();
   if (issue){ toast(issue); return; }
+  var po = state.mode === "delivery" ? pickupOnlyIssue() : "";
+  if (po){ toast(po); return; }
   var bad = false;
   if (!f.name.trim()){ $("#fName").classList.add("bad"); bad = true; }
   var digits = f.phone.replace(/[^0-9]/g, "");

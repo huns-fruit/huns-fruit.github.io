@@ -239,7 +239,10 @@ var PRODUCTS = [
      tip:"김장 배추는 4일 전 예약하세요"}),
   P({id:"cabbage-retail-deal", name:"행사용 배추", unit:"1망", cats:["veg","deal"], img:"cabbage",
      badges:[["행사","hot"]], price:5000, tags:["배추 김장"]}),
-  P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", origin:"국내산", desc:"5단 묶음", badges:[["떨이","hot"]], price:9900, tags:["무 총각김치"]}),
+  /* 알타리 C급 — 떨이·당일소진이라 배달하지 않고 매장 포장만 받는다 (2026-11-27 사장님 지시) */
+  P({id:"altari", name:"알타리", unit:"5단", cats:["veg"], img:"altari", origin:"국내산", grade:"C", pickupOnly:true,
+     desc:"5단 묶음 · C급 당일소진", badges:[["떨이","hot"]], price:9900, tags:["무 총각김치"]}),
+  P({id:"cheonggat", name:"청갓", unit:"1단", cats:["veg"], img:"cheonggat", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["청갓 갓 겉절이 김장"]}),
   P({id:"jjokpa", name:"흙쪽파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"흙 묻은 쪽파 1단", price:3000, tags:["쪽파 파 김장"]}),
   P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"],
      price:3000, startsOnSale:true}),
