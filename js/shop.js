@@ -680,6 +680,8 @@ function minOrderHtml(){
   if (meetMin()) return "";
   /* 포장(픽업)은 최소주문이 따로 없다 — 사과 10kg 조건만 appleDealNoticeHtml() 이 안내한다 */
   if (state.mode === "pickup") return "";
+  /* C급(포장 전용) 상품이 담겨 있으면 최소주문 안내 대신 pickupOnlyCardHtml() 이 포장 전환을 안내한다 */
+  if (pickupOnlyNames().length) return "";
   var z = zoneInfo(), req = deliveryRequirements();
   if (req.gap === 0) return "";
   /* 시내권은 사과 10kg 조건(다른 상품 3만원)과 배달 최소주문이 같은 금액이라 안내가 겹칩니다 — 한 장만 보여 줍니다 */
@@ -1367,7 +1369,7 @@ function renderCart(){
   h += benefitsCardHtml();
   if (!meetMin()){
     h += minOrderHtml();
-    if (!deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
+    if (!pickupOnlyNames().length && !deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
   }
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
