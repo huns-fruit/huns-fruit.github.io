@@ -295,13 +295,10 @@ function gradeOf(p, oi){
 }
 
 /* ── 매장 포장만 (배달 불가) ──
-   C급 떨이 상품(알타리)은 상태가 고르지 않아 배달하지 않고 매장에서 받아 가시게 한다 (2026-11-27 사장님 지시).
-   상품에 pickupOnly:true 를 달면 배달 주문에서는 주문 버튼이 잠기고 포장으로 바꿔야 주문된다.
-   C급 상품 전부(대봉감 가정용 등)에 걸려면 아래 함수에 (gradeOf(p, oi) === "C") 를 더하면 된다. */
+   C급 상품은 상태가 고르지 않아 배달하지 않고 매장에서 받아 가시게 한다 (2026-11-27 사장님: "C급은 배달불가").
+   등급은 사장님 페이지에서 바로 바뀌므로, C급을 빼면 다시 배달된다. */
 function isPickupOnly(p, oi){
-  if (!p) return false;
-  if (p.pickupOnly === true) return true;
-  return !!(p.opts && p.opts[oi] && p.opts[oi].pickupOnly === true);
+  return gradeOf(p, oi) === "C";
 }
 function pickupOnlyNames(){
   var names = [];
