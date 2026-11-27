@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="css/base.css?v=20261125-sale1">
-<link rel="stylesheet" href="css/admin.css?v=20261126-ponytail5">
+<link rel="stylesheet" href="css/admin.css?v=20261128-rcpt1">
 </head>
 <body class="locked">
 
@@ -83,6 +83,10 @@
     <button data-f="pickup">🏪 포장 <em>0</em></button>
     <button data-f="canceled">취소 <em>0</em></button>
   </div>
+  <div class="printbar">
+    <span class="pbhint">영수증은 주문 1건당 한 장(80mm) · A4는 인쇄 창에서 ‘A4 두 칸’</span>
+    <button type="button" id="printAll"><span id="printAllTx">🖨️ 오늘 주문 영수증 인쇄</span><em id="printAllNum">0</em></button>
+  </div>
   <div class="olist" id="orderList"></div>
   <p class="donefoot">주문은 손님 화면(huns-fruit.github.io)에서 결제하면 이 목록에 바로 들어옵니다.<br><b>접수하기 → 배달 출발 → 배달 완료</b>(포장은 <b>접수하기 → 포장 준비 완료 → 픽업 완료</b>)<br>버튼을 누를 때마다 손님 화면의 진행 상태도 새로고침 없이 바뀝니다.<br>배달기사님은 폰으로 이 화면을 열고 <b>배달 완료</b>만 누르면 돼요.<br>진행 중인 주문은 <b>✕ 주문 취소</b>로 취소할 수 있고(사유를 고르면 손님 화면에 바로 보임), 잘못 눌렀으면 취소된 카드의 <b>↺ 주문 되돌리기</b>를 누르세요.</p>
 </main>
@@ -123,6 +127,6 @@
 
 <script src="js/core.js?v=20261126-mailorder1"></script>
 <script src="js/catalog.js?v=20261128-chive1"></script>
-<script src="js/admin.js?v=20261126-ponytail5"></script>
+<script src="js/admin.js?v=20261128-rcpt1"></script>
 </body>
 </html>

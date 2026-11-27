@@ -861,6 +861,8 @@ function orderCardHtml(o){
     + (o.disc > 0 ? '<span class="disc">포장 할인 -' + money(o.disc) + '원</span>' : '')
     + '<span>' + esc(o.pay || "결제") + (o.pay ? '' : '') + '</span>'
     + '<b class="tot">결제 ' + money(o.total) + '원</b></div>';
+  /* 이 주문만 영수증 한 장 인쇄 */
+  h += '<div class="orcpt"><button type="button" data-rcpt="' + esc(o.no) + '" title="이 주문 영수증 인쇄">🖨️ 영수증</button></div>';
   if (st === "canceled"){
     h += '<div class="ocx"><b>❌ 취소된 주문</b>'
       + '<span>사유: ' + esc(o.cancelReason || "기타") + (hhmm(o.cancelAt) ? ' · ' + esc(hhmm(o.cancelAt)) : '') + '</span></div>';
@@ -920,6 +922,8 @@ function renderOrders(){
   });
 
   var list = filteredOrders();
+  var printList = list.filter(function(o){ return oStatus(o) !== "canceled"; });
+  renderPrintBar(printList.length);
   var box = $("#orderList");
   if (!list.length){
     box.innerHTML = '<div class="oempty"><span class="em">🧾</span><b>' + (today.length ? "이 조건에 맞는 주문이 없어요" : "오늘 들어온 주문이 없어요") + '</b>'
@@ -928,6 +932,226 @@ function renderOrders(){
     return;
   }
   box.innerHTML = list.map(orderCardHtml).join("");
+}
+
+/* ── 영수증 인쇄 ───────────────────────────────────────────
+   주문 카드의 ‘🖨️ 영수증’ 또는 목록 위 ‘오늘 주문 영수증 인쇄’로 인쇄 창을 연다.
+   주문 1건 = 한 장(80mm 영수증 프린터), A4는 두 칸으로 나눠 뽑을 수 있다.
+   사업자 정보는 core.js 의 STORE 한 곳에서만 가져와 화면마다 달라지지 않게 한다. */
+function renderPrintBar(n){
+  var tx = $("#printAllTx"), num = $("#printAllNum"), btn = $("#printAll");
+  if (tx) tx.textContent = state.filter === "all" ? "🖨️ 오늘 주문 영수증 인쇄" : "🖨️ 이 목록 영수증 인쇄";
+  if (num) num.textContent = n;
+  if (btn) btn.disabled = !n;
+}
+function rcptWhen(o){
+  var v = tsMs(o && o.at);
+  if (!v) return "—";
+  var d = new Date(v);
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate())
+    + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+}
+function rcptPhone(p){
+  var d = String(p || "").replace(/\D/g, "");
+  if (d.length === 11) return d.slice(0,3) + "-" + d.slice(3,7) + "-" + d.slice(7);
+  if (d.length === 10) return d.slice(0,3) + "-" + d.slice(3,6) + "-" + d.slice(6);
+  return String(p || "");
+}
+function rcptLine(label, val, cls){
+  return '<div class="rl' + (cls ? " " + cls : "") + '"><span>' + label + '</span><b>' + val + '</b></div>';
+}
+function receiptInnerHtml(o){
+  var st = oStatus(o), pick = o.mode === "pickup";
+  var its = o.items || [], sum = 0, i;
+  for (i = 0; i < its.length; i++) sum += Number(its[i].sum) || 0;
+  var disc = Number(o.disc) || 0, total = Number(o.total) || 0;
+  var h = '<section class="receipt">';
+  h += '<div class="rhead"><b class="rstore">' + esc(STORE.name) + ' <i>' + esc(STORE.branch) + '</i></b>'
+    + (st === "canceled" ? '<span class="rcx">취소된 주문 · ' + esc(o.cancelReason || "기타") + '</span>' : '')
+    + '</div>';
+  h += '<div class="rbiz">사업자등록번호 ' + esc(STORE.biz) + ' · 대표 ' + esc(STORE.owner) + '</div>'
+    + '<div class="rbiz">TEL ' + esc(STORE.tel) + '</div>'
+    + '<div class="rbiz">' + esc(STORE.addr) + '</div>'
+    + '<div class="rbiz">통신판매업 ' + esc(STORE.mailorder) + '</div>';
+  h += '<div class="rsep"></div>';
+  h += rcptLine("주문번호", esc(o.no));
+  h += rcptLine("주문일시", esc(rcptWhen(o)));
+  h += rcptLine("수령방식", pick ? "🏪 포장 (매장 픽업)" : "🛵 배달");
+  h += rcptLine("희망일시", esc(slotText(o)));
+  h += rcptLine("진행상태", esc(statusLabel(o)));
+  h += '<div class="rsep"></div>';
+  h += rcptLine("고객명", esc(o.name || "—"));
+  h += rcptLine("연락처", esc(rcptPhone(o.phone)));
+  if (pick){
+    h += rcptLine("수령장소", esc(STORE.addr));
+  } else {
+    h += rcptLine("배달주소", esc(o.addr || "—"));
+    if (o.gate) h += rcptLine("공동현관", esc(o.gate), "gate");
+  }
+  if (o.memo) h += rcptLine("요청사항", esc(o.memo));
+  h += '<div class="rsep"></div>';
+  h += '<table class="ritems"><thead><tr><th class="nm">품목</th><th class="q">수량</th><th class="u">단가</th><th class="s">금액</th></tr></thead><tbody>';
+  if (!its.length) h += '<tr><td class="nm" colspan="4">품목 없음</td></tr>';
+  for (i = 0; i < its.length; i++){
+    var it = its[i];
+    var unit = it.unit ? String(it.unit) : "";
+    var opt = (it.opt && it.opt !== unit) ? String(it.opt) : "";
+    var spec = unit + (opt ? (unit ? " · " : "") + opt : "");
+    var qty = Number(it.qty) || 1;
+    var price = Number(it.price);
+    if (!isFinite(price) || price <= 0) price = Math.round((Number(it.sum) || 0) / qty);
+    h += '<tr' + (isEventItem(it) ? ' class="ev"' : '') + '><td class="nm">' + esc(it.name || "")
+      + (spec ? ' <i>' + esc(spec) + '</i>' : '') + '</td>'
+      + '<td class="q">' + qty + '</td>'
+      + '<td class="u">' + money(price) + '</td>'
+      + '<td class="s">' + money(Number(it.sum) || 0) + '</td></tr>';
+  }
+  h += '</tbody></table>';
+  h += '<div class="rtot">'
+    + '<div class="tr"><span>상품합계</span><b>' + money(sum) + '원</b></div>'
+    + '<div class="tr"><span>배달비</span><b>무료</b></div>'
+    + '<div class="tr"><span>쿠폰·포장 할인</span><b>' + (disc > 0 ? "-" + money(disc) + "원" : "0원") + '</b></div>'
+    + '<div class="tr grand"><span>총 결제금액</span><b>' + money(total) + '원</b></div>'
+    + '</div>';
+  var pay = String(o.pay || "무통장입금");
+  h += '<div class="rpay"><span>결제수단</span><b>' + esc(pay) + '</b>'
+    + (pay.indexOf("무통장") > -1 ? ' <i>NH농협은행 302-1803-5017-81 (예금주 황관훈)</i>' : '') + '</div>';
+  h += '<div class="rpay"><span>입금자명</span><b>' + esc(o.depositor || "—") + '</b></div>';
+  h += '<div class="rpay"><span>현금영수증</span><b>'
+    + (o.receiptNo && o.receiptType && o.receiptType !== "none" ? esc(rcptLabel(o)) + ' ' + esc(o.receiptNo) : '미신청')
+    + '</b></div>';
+  h += '<div class="rfoot">주문해 주셔서 감사합니다</div>'
+    + '<div class="rnote">' + esc(STORE.name) + ' ' + esc(STORE.branch) + ' · 문의 ' + esc(STORE.tel) + '</div>';
+  h += '</section>';
+  return h;
+}
+var RCPT_CSS = [
+  '*{box-sizing:border-box}',
+  'html,body{margin:0;padding:0}',
+  'body{background:#E9EDF0;color:#111;font-family:Pretendard,"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+  '.toolbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 14px;background:#fff;border-bottom:1px solid #DDE1E4}',
+  '.toolbar button{height:42px;padding:0 16px;border-radius:10px;font-size:14px;font-weight:800;border:1px solid #DDE1E4;background:#fff;color:#333;cursor:pointer}',
+  '.toolbar .go{background:#2AC1BC;border-color:#2AC1BC;color:#fff}',
+  '.toolbar .hint{flex:1 1 100%;margin:0;font-size:12px;color:#6B7075;line-height:1.5}',
+  '.sheet{width:80mm;margin:14px auto 26px}',
+  '.receipt{position:relative;width:80mm;background:#fff;padding:5mm 4mm;margin:0 0 12px;box-shadow:0 2px 10px rgba(0,0,0,.09);font-size:11px;line-height:1.45;letter-spacing:-.1px;page-break-after:always;break-after:page}',
+  '.receipt:last-child{page-break-after:auto;break-after:auto}',
+  '.rhead{text-align:center}',
+  '.rstore{display:block;font-size:18px;font-weight:800;letter-spacing:-.7px}',
+  '.rstore i{font-style:normal;font-size:12px;font-weight:800;color:#12A39E}',
+  '.rcx{display:block;margin-top:3px;font-size:11px;font-weight:800;color:#B3342B}',
+  '.rbiz{text-align:center;font-size:9.5px;color:#444;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}',
+  '.rsep{border-top:1px dashed #9AA0A6;margin:5px 0}',
+  '.rl{display:flex;gap:6px;font-size:10.5px;line-height:1.55}',
+  '.rl>span{flex:0 0 54px;color:#666;font-weight:700}',
+  '.rl>b{flex:1 1 auto;min-width:0;font-weight:800;word-break:keep-all;overflow-wrap:anywhere}',
+  '.rl.gate>b{color:#B3342B}',
+  '.ritems{width:100%;border-collapse:collapse;margin-top:2px;font-size:10.5px;table-layout:fixed}',
+  '.ritems th{font-size:9px;color:#666;font-weight:800;text-align:right;padding:0 0 3px;border-bottom:1px solid #CCC}',
+  '.ritems th.nm{text-align:left;width:46%}',
+  '.ritems th.q{width:11%}',
+  '.ritems th.u{width:21%}',
+  '.ritems th.s{width:22%}',
+  '.ritems td{padding:3px 0;vertical-align:top;border-bottom:1px dotted #E3E6E8}',
+  '.ritems td.nm{text-align:left;word-break:keep-all;overflow-wrap:anywhere}',
+  '.ritems td.nm i{font-style:normal;color:#666;font-size:9.5px}',
+  '.ritems td.q,.ritems td.u,.ritems td.s{text-align:right;white-space:nowrap;padding-left:3px}',
+  '.ritems td.s{font-weight:800}',
+  '.ritems tr.ev td{background:#FFFBEA}',
+  '.rtot{margin-top:4px;font-size:10.5px}',
+  '.rtot .tr{display:flex;justify-content:space-between;gap:8px;padding:1.5px 0}',
+  '.rtot .tr span{color:#555}',
+  '.rtot .tr b{font-weight:800}',
+  '.rtot .grand{margin-top:3px;padding-top:4px;border-top:1.5px solid #222}',
+  '.rtot .grand span{font-size:12px;font-weight:800;color:#111}',
+  '.rtot .grand b{font-size:15px;letter-spacing:-.4px}',
+  '.rpay{display:flex;gap:6px;margin-top:3px;font-size:10px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}',
+  '.rpay span{flex:0 0 54px;color:#666;font-weight:700}',
+  '.rpay b{font-weight:800}',
+  '.rpay i{font-style:normal;color:#555;font-size:9.5px}',
+  '.rfoot{margin-top:7px;text-align:center;font-size:10.5px;font-weight:800;color:#333}',
+  '.rnote{margin-top:2px;text-align:center;font-size:9px;color:#777}',
+  'html.a4 .sheet{width:auto;max-width:196mm;margin:14px auto;display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start}',
+  'html.a4 .receipt{width:auto;padding:4mm;margin:0;border:1px dashed #C9CDD1;box-shadow:none;page-break-after:auto;break-after:auto;page-break-inside:avoid;break-inside:avoid}',
+  '@page{size:80mm auto;margin:3mm 2mm}',
+  '@media print{',
+  '  body{background:#fff}',
+  '  .no-print{display:none!important}',
+  '  .sheet{width:auto;max-width:none;margin:0;display:block}',
+  '  .receipt{width:auto;padding:0;margin:0;box-shadow:none;border:0;page-break-after:always;break-after:page}',
+  '  .receipt:last-child{page-break-after:auto;break-after:auto}',
+  '  html.a4 .sheet{display:grid;grid-template-columns:1fr 1fr;gap:6mm}',
+  '  html.a4 .receipt{padding:3mm;border:1px dashed #C9CDD1;page-break-after:auto;break-after:auto;page-break-inside:avoid;break-inside:avoid}',
+  '}'
+].join("\n");
+function receiptDocHtml(list, title){
+  var body = list.map(receiptInnerHtml).join("");
+  if (!body) body = '<section class="receipt"><div class="rhead"><b class="rstore">인쇄할 주문이 없습니다</b></div></section>';
+  return '<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8">'
+    + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+    + '<title>' + esc(title) + '</title><style>' + RCPT_CSS + '</style></head><body>'
+    + '<div class="toolbar no-print">'
+    + '<button class="go" id="rcptPrint" type="button">🖨️ 인쇄 / PDF 저장</button>'
+    + '<button id="rcptA4" type="button">A4 두 칸</button>'
+    + '<button id="rcptClose" type="button">닫기</button>'
+    + '<p class="hint">영수증 프린터(80mm)는 그대로 인쇄하세요 · A4로 뽑을 때는 ‘A4 두 칸’을 누르고 인쇄 · ' + list.length + '장</p>'
+    + '</div><div class="sheet">' + body + '</div>'
+    + '<script>'
+    + 'document.getElementById("rcptPrint").onclick=function(){window.print();};'
+    + 'document.getElementById("rcptA4").onclick=function(){document.documentElement.classList.toggle("a4");};'
+    + 'document.getElementById("rcptClose").onclick=function(){window.close();};'
+    + '</scr' + 'ipt></body></html>';
+}
+/* 인쇄 창을 열고 영수증을 그린다. 팝업이 막히면 이 화면의 iframe으로 인쇄한다. */
+function openReceiptWindow(list){
+  if (!list || !list.length){ toast("인쇄할 주문이 없어요"); return; }
+  var sorted = list.slice().sort(function(a, b){ return (tsMs(a.at) || 0) - (tsMs(b.at) || 0); });
+  var title = STORE.name + " " + STORE.branch + " 주문 영수증 " + sorted.length + "장 · " + dayStr();
+  var html = receiptDocHtml(sorted, title);
+  var w = null;
+  try { w = window.open("", "_blank"); } catch(e){ w = null; }
+  if (w){
+    try {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      try { w.focus(); } catch(e){}
+      toast("영수증 " + sorted.length + "장을 열었어요 · 인쇄 버튼을 누르세요");
+      return;
+    } catch(e){}
+  }
+  printReceiptFallback(html);
+}
+function printReceiptFallback(html){
+  var f = document.createElement("iframe");
+  f.setAttribute("aria-hidden", "true");
+  f.setAttribute("title", "영수증 인쇄");
+  f.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(f);
+  try {
+    var d = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+    d.open(); d.write(html); d.close();
+  } catch(e){ toast("영수증 창을 열지 못했어요 · 팝업 차단을 풀어 주세요"); return; }
+  setTimeout(function(){
+    try { f.contentWindow.focus(); f.contentWindow.print(); toast("인쇄 창을 열었어요"); }
+    catch(e){ toast("영수증 창을 열지 못했어요 · 팝업 차단을 풀어 주세요"); }
+    setTimeout(function(){ if (f.parentNode) f.parentNode.removeChild(f); }, 60000);
+  }, 350);
+}
+function printOrderReceipt(no){
+  var list = state.orders, found = null;
+  for (var i = 0; i < list.length; i++) if (list[i] && list[i].no === no){ found = list[i]; break; }
+  if (!found){ toast("주문을 찾지 못했어요 · 새로고침해 주세요"); return; }
+  openReceiptWindow([found]);
+}
+/* 목록 위 일괄 인쇄 — 지금 필터에 보이는 주문 중 취소된 주문만 뺀다 */
+function printAllReceipts(){
+  var list = filteredOrders().filter(function(o){ return oStatus(o) !== "canceled"; });
+  if (!list.length){
+    toast(state.filter === "canceled" ? "취소된 주문은 영수증을 뽑지 않아요" : "지금 인쇄할 주문이 없어요");
+    return;
+  }
+  openReceiptWindow(list);
 }
 function setStatus(no, next){
   if (next !== "received") markAck(no);   /* 상태를 바꾸면 새 주문 알림은 끝난 것 */
@@ -1201,12 +1425,16 @@ function bind(){
     state.filter = b.getAttribute("data-f");
     renderOrders();
   });
+  var pab = $("#printAll");
+  if (pab) pab.addEventListener("click", printAllReceipts);
   var ob = $("#orphanBar");
   if (ob) ob.addEventListener("click", function(e){
     if (e.target.closest("#orphanRestore")){ restoreOrphans(); return; }
     if (e.target.closest("#orphanDrop")) dropOrphans();
   });
   $("#orderList").addEventListener("click", function(e){
+    var rp = e.target.closest("[data-rcpt]");
+    if (rp){ printOrderReceipt(rp.getAttribute("data-rcpt")); return; }
     var cx = e.target.closest("[data-cancel]");
     if (cx){ openCancel(cx.getAttribute("data-cancel")); return; }
     var b = e.target.closest("[data-act]");

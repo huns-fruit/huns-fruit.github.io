@@ -89,6 +89,18 @@
 
 /* ── 주문 카드 ───────────────────────────── */
 .olist{padding:10px 16px 0;display:flex;flex-direction:column;gap:10px}
+/* 영수증 인쇄 — 목록 위 일괄 버튼과 카드별 버튼 */
+.printbar{display:flex;align-items:center;gap:8px;padding:10px 16px 0}
+.printbar .pbhint{flex:1 1 auto;min-width:0;font-size:11.5px;color:var(--ink3);font-weight:700;letter-spacing:-.2px;line-height:1.45}
+.printbar button{flex:0 0 auto;height:38px;padding:0 13px;border-radius:10px;border:1.5px solid var(--mint);background:var(--mint-l);color:var(--mint-d);font-size:12.5px;font-weight:800;letter-spacing:-.3px;display:inline-flex;align-items:center;gap:6px}
+.printbar button:active{background:#D7F3F1}
+.printbar button em{font-style:normal;font-size:11px;font-weight:800;background:#fff;border:1px solid var(--mint);border-radius:999px;padding:1px 6px}
+.printbar button:disabled{opacity:.5;border-color:#DDE1E4;background:#F5F6F7;color:var(--ink3)}
+.printbar button:disabled em{border-color:#DDE1E4;color:var(--ink3)}
+.orcpt{display:flex;justify-content:flex-end;margin-top:9px}
+.orcpt button{height:32px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--ink2);font-size:12.5px;font-weight:800;letter-spacing:-.2px}
+.orcpt button:active{background:#F4F6F7}
+@media (max-width:430px){ .printbar .pbhint{display:none} .printbar{justify-content:flex-end} }
 .ocard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;border-left:5px solid var(--line);box-shadow:var(--sh)}
 .ocard.st-received{border-left-color:#E7A93C}
 .ocard.st-accepted{border-left-color:#8FB4FF}
