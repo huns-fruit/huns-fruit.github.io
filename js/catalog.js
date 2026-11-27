@@ -257,7 +257,7 @@ var PRODUCTS = [
   P({id:"lettuce", name:"양상추", unit:"1통", cats:["veg"], img:"lettuce", badges:[], origin:"국내산", desc:"1통", price:2000, tags:["상추"]}),
   P({id:"sangchu", name:"상추", unit:"1봉지", cats:["veg"], img:"sangchu", badges:[], origin:"국내산", desc:"1봉지", price:2000, tags:["상추"]}),
   P({id:"perilla", name:"깻잎", unit:"1봉지", cats:["veg"], img:"perilla", badges:[], origin:"국내산", desc:"1봉지", price:1500, tags:["깻잎"], tip:"씻지 말고 냉장 보관하세요"}),
-  P({id:"gangneung-tofu-850g", name:"강릉두부", unit:"850g", cats:["veg"], price:2700, tags:["두부","강릉두부"]}),
+  P({id:"gangneung-tofu-850g", name:"강릉심해 두부", unit:"900g", cats:["veg"], origin:"외국산(미국·캐나다·호주 등)", price:2700, tags:["두부","강릉두부","강릉심해두부"]}),
   P({id:"gangneung-tofu-domestic-300g", name:"강릉두부 국산", unit:"300g", cats:["veg"], origin:"국산", price:2900, tags:["두부","국산두부"]}),
   P({id:"gangneung-chodang-tofu-550g", name:"강릉초당두부", unit:"550g", cats:["veg"], origin:"외국산(미국·캐나다·중국 등)", price:2700, tags:["두부","초당두부"]}),
   P({id:"dotori-muk-400g", name:"도토리묵", unit:"400g", cats:["veg"], price:1300, tags:["묵","도토리묵"]}),
