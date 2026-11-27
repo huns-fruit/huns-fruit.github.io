@@ -80,7 +80,7 @@ var PRODUCTS = [
   P({id:"singobae-10", name:"신고배", unit:"10개", cats:["deal","fruit"],
      badges:[["특가","hot"]], price:5000, tags:["신고배 배"]}),
   P({id:"greenkiwi", name:"그린키위", unit:"20알", cats:["deal","fruit"], img:"kiwi", grade:"home",
-     badges:[["특가","hot"]], origin:"뉴질랜드산", desc:"새콤한 그린키위 20알", price:8000, tags:["키위"]}),
+     badges:[["특가","hot"]], origin:"국내산", desc:"새콤한 그린키위 20알", price:8000, tags:["키위"]}),
   P({id:"bansee-25-deal-1127", name:"반시", unit:"2.5kg", cats:["deal","fruit"], img:"persimmon",
      badges:[["특가","hot"]], origin:"국내산", price:3900, endsOnDate:"2026-11-27", tags:["감 홍시"]}),
   P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 7수", cats:["deal","fruit"], img:"shine",
