@@ -372,13 +372,15 @@ function pauseUntilText(){ return pauseExtendsToday() ? "오후 9시 30분" : "�
 function pauseUntilSubject(){ return pauseExtendsToday() ? "오후 9시 30분이" : "오후 9시가"; }
 function orderPauseRange(){ return pauseExtendsToday() ? "오후 8시~9시 30분" : "오후 8시~9시"; }
 function delivPauseRange(){ return pauseExtendsToday() ? "오후 6시~9시 30분" : "오후 6시~9시"; }
-function orderPauseMsg(){ return orderPauseRange() + "는 내일 상품 준비 시간이라 주문을 잠시 쉬어요 · " + pauseUntilText() + "부터 다시 주문할 수 있어요"; }
+/* 받침에 맞는 조사 — 9시(는) / 9시 30분(은) */
+function pauseRangeParticle(){ return pauseExtendsToday() ? "은" : "는"; }
+function orderPauseMsg(){ return orderPauseRange() + pauseRangeParticle() + " 내일 상품 준비 시간이라 주문을 잠시 쉬어요 · " + pauseUntilText() + "부터 다시 주문할 수 있어요"; }
 /* 오후 6시~9시는 배달 주문을 받지 않는다 — 사장님이 재고를 확인하고 9시에 새 상품·가격을 올린다 (2026-11-27 사장님 지시: "재고가 안 맞을 가능성이 높아").
    포장은 평소대로(오후 8시까지), 8시~9시는 위의 전체 주문 쉼이 함께 걸린다. */
 var DELIV_PAUSE_FROM_H = 18, DELIV_PAUSE_TO_H = 21;
 function delivPauseToMin(){ return pauseExtendsToday() ? 21*60 + 30 : DELIV_PAUSE_TO_H*60; }
 function deliveryPaused(){ var d = kstDate(), m = d.getHours()*60 + d.getMinutes(); return m >= DELIV_PAUSE_FROM_H*60 && m < delivPauseToMin(); }
-function delivPauseMsg(){ return delivPauseRange() + "는 재고 확인 시간이라 배달 주문을 잠시 받지 않아요 · " + pauseUntilText() + "부터 다시 배달 주문할 수 있어요"; }
+function delivPauseMsg(){ return delivPauseRange() + pauseRangeParticle() + " 재고 확인 시간이라 배달 주문을 잠시 받지 않아요 · " + pauseUntilText() + "부터 다시 배달 주문할 수 있어요"; }
 function deliveryPauseBannerHtml(pad){
   return '<div class="banner closed"' + (pad === undefined ? '' : ' style="margin:' + (pad ? '12px 0 0' : '10px 16px 0') + '"') + '>'
     + '<b><span class="bn-ico">📦</span>지금은 배달 주문을 잠시 받지 않아요 (' + delivPauseRange() + ')</b>'
