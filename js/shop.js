@@ -482,7 +482,36 @@ function isSundayKst(){ return kstWeekday() === 0; }
 function slotOnSunday(key){ var off = SLOT_DAY_OFFSET[key]; return off !== undefined && (kstWeekday() + off) % 7 === 0; }
 /* 다음 배달 아침이 언제인지 — 토요일이면 일요일을 건너뛰어 '월요일' */
 function nextDeliveryMorningWord(){ return kstWeekday() === 6 ? "월요일" : "내일"; }
+/* ── 월요일 배달 막기 (2026-11-28 사장님: "일요일 배달 안 하니까 지금 재고를 월요일에 줄 수 없어") ──
+   월요일이 아닌 날 들어오는 배달 주문은 월요일로 넘기지 않는다(금요일의 '월요일 오전'도 뺌).
+   그래서 토요일 낮 12시 이후 ~ 일요일 하루는 배달 주문을 받지 않고 포장만. */
+function slotLandsMonday(key){
+  if (key === "monday_am") return true;
+  var off = SLOT_DAY_OFFSET[key];
+  return off !== undefined && (kstWeekday() + off) % 7 === 1;
+}
+function slotAllowed(key){
+  var wd = kstWeekday();
+  if (wd !== 1 && slotLandsMonday(key)) return false;
+  /* 토·일요일 주문은 그날 받는 배달만 (일요일 재고를 화요일로 넘기지도 않음) */
+  if ((wd === 6 || wd === 0) && SLOT_DAY_OFFSET[key] !== 0) return false;
+  return true;
+}
+function weekendDeliveryOff(){
+  if (ctxKey() === "pickup") return false;
+  return slotListRaw().filter(function(s){ return slotAllowed(s.key); }).length === 0;
+}
 function slotList(){
+  var list = slotListRaw();
+  if (ctxKey() === "pickup") return list;
+  if (kstWeekday() !== 1){
+    list = list.filter(function(s){ return slotAllowed(s.key); });
+    /* 고를 배달 시간이 없으면 자리만 남긴다(주문은 blockReason 이 막음) */
+    if (!list.length) list = [{key:"none", label:"배달 쉼", sub:"월요일에 다시 받아요", eta:"배달 쉼"}];
+  }
+  return list;
+}
+function slotListRaw(){
   if (ctxKey() === "pickup") return pickupSlots();
   var outer = ctxKey() === "delivery_outer";
   var list = SLOT_DEF[ctxKey()] || SLOT_DEF.delivery_city;
@@ -512,7 +541,7 @@ function slotList(){
 function sundayBannerHtml(){
   var t = isSundayKst() ? "오늘(일요일)은 배달을 쉬어요" : "내일(일요일)은 배달을 쉬어요";
   return '<div class="banner closed"><b><span class="bn-ico">🗓️</span>' + t + '</b>'
-    + '<small>지금 배달로 주문하시면 ' + (isSundayKst() ? "내일(월요일)" : "월요일") + ' 오전에 배달돼요 · 매장 포장은 ' + PICKUP_HOURS + ' 가능해요</small>'
+    + '<small>재고가 맞지 않아 월요일 배달 주문도 미리 받지 않아요 · 배달 주문은 월요일에 다시 받아요 · 매장 포장은 ' + PICKUP_HOURS + ' 가능해요</small>'
     + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
 }
 /* ── 현금영수증 표기 ── */
@@ -769,6 +798,7 @@ function meetMin(){
 function blockReason(){
   if (orderPaused()) return pauseUntilText() + "부터 주문할 수 있어요";
   if (state.mode === "delivery" && deliveryPaused()) return "배달 주문은 " + pauseUntilText() + "부터 가능해요";
+  if (state.mode === "delivery" && weekendDeliveryOff()) return "배달 주문은 월요일에 다시 받아요 · 포장은 가능해요";
   var issue = cartStockIssue();
   if (issue) return issue;
   var ap = appleRequirement();
@@ -2028,6 +2058,7 @@ async function pay(){
   if (!state.cart.length){ toast("장바구니가 비어 있어요"); return; }
   if (orderPaused()){ toast(orderPauseMsg()); updatePayBtn(); return; }
   if (state.mode === "delivery" && deliveryPaused()){ toast(delivPauseMsg()); updatePayBtn(); return; }
+  if (state.mode === "delivery" && weekendDeliveryOff()){ toast("일요일은 배달을 쉬어서 배달 주문은 월요일에 다시 받아요 · 포장 주문은 가능해요"); updatePayBtn(); return; }
   var f = state.form;
   var issue = cartStockIssue();
   if (issue){ toast(issue); return; }
