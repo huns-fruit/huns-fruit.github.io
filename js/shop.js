@@ -401,7 +401,7 @@ function pickupSlots(){
   return list;
 }
 function closedMsg(){
-  return "오늘 당일 배달은 낮 12시에 마감되었어요. 지금 주문하시면 내일 오전 배송으로 접수됩니다. ("
+  return "오늘 당일 배달은 낮 12시에 마감되었어요. 지금 주문하시면 " + nextDeliveryMorningWord() + " 오전 배송으로 접수됩니다. ("
     + (pickupOpenNow() ? "매장 포장은 " + PICKUP_HOURS + " 안에서 지금도 가능해요"
                        : "매장 포장은 영업시간 " + PICKUP_HOURS + "에 가능해요") + ")";
 }
@@ -413,7 +413,7 @@ function deliveryClosedBannerHtml(){
 }
 function deliveryClosedNote(pad){
   return '<div class="banner closed" style="margin:' + (pad ? '12px 0 0' : '10px 16px 0') + '">'
-    + '<b><span class="bn-ico">⏰</span>낮 12시 마감 · 내일 오전 배송으로 접수돼요</b>'
+    + '<b><span class="bn-ico">⏰</span>낮 12시 마감 · ' + nextDeliveryMorningWord() + ' 오전 배송으로 접수돼요</b>'
     + '<small>' + closedMsg() + '</small>'
     + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
 }
@@ -434,14 +434,46 @@ function pickupClosedNote(pad){
 
 /* ── 받는 시간 선택 ── */
 function ctxKey(){ return state.mode === "pickup" ? "pickup" : "delivery_" + state.zone; }
+/* ── 일요일은 배달 쉼 (2026-11-27 사장님: "일요일 항상 배달불가 · 직원이 없음") ──
+   배달 날짜가 일요일이 되는 받는 시간은 빼고, 그 자리에 월요일 오전 배달을 넣는다. 포장은 그대로. */
+var SLOT_DAY_OFFSET = {today_pm:0, tomorrow_am:1, dayafter_am:2};
+function kstWeekday(){ return kstDate().getDay(); }          /* 0 = 일요일 */
+function isSundayKst(){ return kstWeekday() === 0; }
+function slotOnSunday(key){ var off = SLOT_DAY_OFFSET[key]; return off !== undefined && (kstWeekday() + off) % 7 === 0; }
+/* 다음 배달 아침이 언제인지 — 토요일이면 일요일을 건너뛰어 '월요일' */
+function nextDeliveryMorningWord(){ return kstWeekday() === 6 ? "월요일" : "내일"; }
 function slotList(){
   if (ctxKey() === "pickup") return pickupSlots();
+  var outer = ctxKey() === "delivery_outer";
   var list = SLOT_DEF[ctxKey()] || SLOT_DEF.delivery_city;
   /* 낮 12시가 지나면 오늘 오후 배달은 받지 않고 내일 오전 배송으로 접수한다 */
   if (ctxKey() === "delivery_city" && deliveryClosed()){
     list = list.filter(function(s){ return s.key !== "today_pm"; });
   }
+  var hadSunday = list.some(function(s){ return slotOnSunday(s.key); });
+  list = list.filter(function(s){ return !slotOnSunday(s.key); });
+  if (kstWeekday() === 6){
+    /* 토요일: '모레 오전'은 월요일이니 헷갈리지 않게 요일로 적는다 */
+    list = list.map(function(s){
+      return s.key === "dayafter_am" ? {key:"monday_am", label:"월요일 오전 배송", sub:"일요일은 배달 쉬어요", eta:"월요일 오전 배송"} : s;
+    });
+  }
+  var hasMonday = list.some(function(s){
+    if (s.key === "monday_am") return true;
+    var off = SLOT_DAY_OFFSET[s.key];
+    return off !== undefined && (kstWeekday() + off) % 7 === 1;
+  });
+  if (hadSunday && !hasMonday){
+    var w = outer ? "배송" : "배달";
+    list = list.concat([{key:"monday_am", label:"월요일 오전 " + w, sub:"일요일은 배달 쉬어요", eta:"월요일 오전 " + w}]);
+  }
   return list;
+}
+function sundayBannerHtml(){
+  var t = isSundayKst() ? "오늘(일요일)은 배달을 쉬어요" : "내일(일요일)은 배달을 쉬어요";
+  return '<div class="banner closed"><b><span class="bn-ico">🗓️</span>' + t + '</b>'
+    + '<small>지금 배달로 주문하시면 ' + (isSundayKst() ? "내일(월요일)" : "월요일") + ' 오전에 배달돼요 · 매장 포장은 ' + PICKUP_HOURS + ' 가능해요</small>'
+    + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
 }
 /* ── 현금영수증 표기 ── */
 function receiptLabel(t){
@@ -867,10 +899,11 @@ function renderMode(){
       + slotBoxHtml(true)
       + '</div>';
   } else {
-    el.innerHTML = (deliveryClosed() ? deliveryClosedBannerHtml() : '')
+    var sunNote = isSundayKst() || (kstWeekday() === 6 && deliveryClosed());
+    el.innerHTML = (sunNote ? sundayBannerHtml() : (deliveryClosed() ? deliveryClosedBannerHtml() : ''))
       + '<div class="banner deliv">'
       + '<b><span class="bn-ico">🛵</span>무료배달 최소주문</b>'
-      + '<small>원주 시내 30,000원 이상 · 기업·태장·우산 50,000원 이상 · 계란 금액 제외 · 낮 12시 마감</small>'
+      + '<small>원주 시내 30,000원 이상 · 기업·태장·우산 50,000원 이상 · 계란 금액 제외 · 낮 12시 마감 · 일요일 배달 쉼</small>'
       + '<div class="chips">'
       +   '<button data-zone="city"' + (state.zone === "city" ? ' class="on"' : '') + '>원주 시내권 <em>3만원 이상</em></button>'
       +   '<button data-zone="outer"' + (state.zone === "outer" ? ' class="on"' : '') + '>기업·태장·우산동 <em>5만원 이상</em></button>'
@@ -1544,7 +1577,7 @@ var POLICIES = {
     title: "배송 및 교환·환불 정책",
     body: '<p class="polmeta">시행일 2026년 11월 22일 · 훈이네과일야채 단구점</p>'
       + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다. 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>15,000원 이상 포장 주문에는 1,000원 할인 쿠폰을 하루 1회 쓸 수 있습니다.</li></ul>'
-      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
+      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다.</li><li><b>일요일은 배달하지 않습니다.</b> 토요일 낮 12시 이후와 일요일에 배달로 주문하시면 월요일 오전에 배달됩니다. 일요일에도 매장 포장은 가능합니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
       + '<h4>3. 신선식품 교환·환불</h4><p>과일·채소는 신선식품이라 받으신 날 상태를 확인해 주세요. 아래 경우에는 <b>사진 접수</b>로 알려 주시면 확인 후 <b>교환 또는 부분환불</b>로 보상해 드립니다.</p><ul><li>받은 날 상한·무른·곰팡이·파손 등 이상이 있는 경우</li><li>주문한 상품과 다르거나 수량이 모자란 경우</li><li>표시된 등급·규격과 현저히 다른 경우</li></ul>'
       + '<h4>4. 접수와 처리 절차</h4><ul><li>화면의 <b>📷 받은 상품 이상하면 사진 접수</b>를 눌러 사진(최대 3장)·품목·사유·연락처를 보내 주세요.</li><li>사장님이 사진을 확인한 뒤 연락드리고, 교환·부분환불·다음 주문 보상 중에서 알맞은 방법으로 처리합니다.</li><li>급하시면 고객센터 010-9142-1531로 전화 주세요. 접수번호(CL…)를 알려 주시면 바로 확인합니다.</li></ul>'
       + '<h4>5. 교환·환불이 어려운 경우</h4><ul><li>수령한 다음 날 이후에 알려 주신 경우(다만 보관 중 이상이 생긴 것이 확인되면 상담해 드립니다)</li><li>이미 드셨거나 조리하신 경우, 손질·보관을 잘못하신 경우</li><li>단순 변심으로 받으신 날 이후에 요청하신 경우</li></ul>'
