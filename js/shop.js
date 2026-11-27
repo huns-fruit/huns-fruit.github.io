@@ -312,7 +312,11 @@ function stockOf(p){
   if (typeof p.stock === "number") return p.stock;
   return null;
 }
-function isSold(p){ return !productAvailable(p) || coreIsSold(p, stockOf); }
+/* 딸기 전체 품절 — 2026-11-27 밤 사장님: "내일 오전부터 딸기 주문 일단 완전 품절" (반곡점 납품 물량 부족)
+   다시 팔 때는 STRAWBERRY_OFF_FROM 을 "" 로 비우면 됩니다. */
+var STRAWBERRY_OFF_FROM = "2026-11-28 00:00";
+function strawberryOff(p){ return !!STRAWBERRY_OFF_FROM && isStrawberryProduct(p) && kstStamp() >= STRAWBERRY_OFF_FROM; }
+function isSold(p){ return !productAvailable(p) || strawberryOff(p) || coreIsSold(p, stockOf); }
 function commentOf(p){ var cl = clearanceOf(p.id); if (cl && cl.comment) return cl.comment; var c = ov(p.id).comment; return c ? String(c).trim() : ""; }
 /* ── 과일 등급 (사장님이 고친 등급이 있으면 그걸 우선) ── */
 function gradeOf(p, oi){
