@@ -338,6 +338,15 @@ function kstDate(){
   return new Date(d.getTime() + d.getTimezoneOffset() * 60000 + 9 * 3600000);
 }
 function deliveryClosed(){ return kstDate().getHours() >= 12; }
+/* 오후 8시~9시(한국 시간)는 사장님이 내일 팔 상품 가격을 고치는 시간 — 배달·포장 모두 주문을 받지 않는다 (2026-11-27 사장님 지시).
+   9시가 되면 바뀐 가격으로 다시 주문을 받는다. */
+var ORDER_PAUSE_FROM_H = 20, ORDER_PAUSE_TO_H = 21;
+var ORDER_PAUSE_MSG = "오후 8시~9시는 내일 상품 준비 시간이라 주문을 잠시 쉬어요 · 오후 9시부터 다시 주문할 수 있어요";
+function orderPaused(){ var d = kstDate(), m = d.getHours()*60 + d.getMinutes(); return m >= ORDER_PAUSE_FROM_H*60 && m < ORDER_PAUSE_TO_H*60; }
+function orderPauseBannerHtml(){
+  return '<div class="banner closed"><b><span class="bn-ico">🌙</span>지금은 주문 준비 시간이에요 (오후 8시~9시)</b>'
+    + '<small>내일 판매할 상품과 가격을 정리하고 있어요 · 오후 9시부터 다시 주문할 수 있어요 · 장바구니에 담아 두셔도 돼요</small></div>';
+}
 /* 한국 시간 기준 지금이 몇 분인지 (00:00 = 0) */
 function kstMin(){ var d = kstDate(); return d.getHours()*60 + d.getMinutes(); }
 function pad2(n){ return String(n).padStart(2,"0"); }
@@ -664,6 +673,7 @@ function meetMin(){
 }
 /* 주문 버튼이 잠긴 이유 (장바구니·주문서 공용) — 없으면 빈 문자열 */
 function blockReason(){
+  if (orderPaused()) return "오후 9시부터 주문할 수 있어요";
   var issue = cartStockIssue();
   if (issue) return issue;
   var ap = appleRequirement();
@@ -848,6 +858,7 @@ function renderMode(){
       + slotBoxHtml(true)
       + '</div>';
   }
+  if (orderPaused()) el.insertAdjacentHTML("afterbegin", orderPauseBannerHtml());
 }
 
 /* ────────────────────────────────────────────────
@@ -1916,6 +1927,7 @@ function bindCheckout(){
 async function pay(){
   if (checkingStock || state.view !== "checkout") return;
   if (!state.cart.length){ toast("장바구니가 비어 있어요"); return; }
+  if (orderPaused()){ toast(ORDER_PAUSE_MSG); updatePayBtn(); return; }
   var f = state.form;
   var issue = cartStockIssue();
   if (issue){ toast(issue); return; }
@@ -2450,7 +2462,7 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr(), wasPaused = orderPaused();
   setInterval(function(){ var dt = $("#dealTimer"); if (dt) dt.textContent = dealTimerText(); }, 30000);
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow(), psd = pickupSameDayOrderable();
@@ -2462,6 +2474,13 @@ function init(){
       syncBanana(true);
       renderCats();
       renderAll();
+    }
+    var pz = orderPaused();
+    if (pz !== wasPaused){
+      wasPaused = pz;
+      renderAll();
+      if (state.view === "checkout") renderCheckout();
+      toast(pz ? ORDER_PAUSE_MSG : "오후 9시가 됐어요 · 지금부터 다시 주문할 수 있어요");
     }
     if (c === wasClosed && po === wasPickupOpen && psd === wasPickupSameDay) return;
     var startedTodayPickup = psd && !wasPickupSameDay;
