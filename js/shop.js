@@ -272,10 +272,21 @@ function clearanceOf(id){
 }
 function clearanceKey(){ return Object.keys(CLEARANCE).filter(clearanceOf).join(","); }
 
+/* ── 사장님이 채팅으로 바꾼 가격 ──
+   사장님 페이지에 예전 가격이 남아 있으면(was 와 같으면) 새 가격으로 보여 준다.
+   사장님 페이지에서 다른 값으로 다시 고치면 그 값이 이긴다. (2026-11-27 밤 사장님: 애호박 1,500 · 무 2,500 · 흙쪽파 2,000 · 대파 1,000) */
+var PRICE_SUPERSEDE = {
+  "aehobak": {was:1000, price:1500},
+  "mu":      {was:2000, price:2500},
+  "jjokpa":  {was:3000, price:2000},
+  "daepa":   {was:2000, price:1000}
+};
 function priceOf(p, oi){
   var cl = clearanceOf(p.id);
   if (cl && !p.opts) return cl.price;
   var o = ov(p.id);
+  var sp = PRICE_SUPERSEDE[p.id];
+  if (sp && !p.opts && o.price === sp.was) return sp.price;
   if (p.opts){ var a = o.opts || [], v = a[oi]; return (typeof v === "number" && v > 0) ? v : p.opts[oi].price; }
   return (typeof o.price === "number" && o.price > 0) ? o.price : p.price;
 }
