@@ -269,7 +269,7 @@ var PRODUCTS = [
   P({id:"byeongma", name:"병마", unit:"1kg", cats:["veg"],
      price:3000, startsOnSale:true}),
   P({id:"daepa", name:"대파", unit:"1단", cats:["veg"], img:"daepa", badges:[], origin:"국내산", desc:"1단", price:1000, stock:20, tags:["파"], tip:"뿌리째 세워 두면 오래가요"}),
-  P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:3000, tags:["부추"]}),
+  P({id:"buchu", name:"부추", unit:"1단", cats:["veg"], img:"buchu", badges:[], origin:"국내산", desc:"1단", price:4500, tags:["부추"]}),
   P({id:"cheongyang", name:"청양고추", unit:"1팩", cats:["veg"], img:"cheongyang", badges:[], origin:"국내산", desc:"매콤한 청양고추", price:2000, tags:["고추"]}),
   P({id:"kkwari", name:"꽈리고추", unit:"1팩", cats:["veg"], img:"kkwari", badges:[], origin:"국내산", desc:"1팩", price:2000, tags:["고추"]}),
   P({id:"potato", name:"감자", unit:"1봉지", cats:["veg"], img:"potato", badges:[], origin:"국내산", desc:"1봉지", price:3000, tags:["감자"]}),
