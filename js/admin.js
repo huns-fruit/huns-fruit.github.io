@@ -1014,8 +1014,9 @@ function receiptInnerHtml(o){
     + '<div class="tr grand"><span>총 결제금액</span><b>' + money(total) + '원</b></div>'
     + '</div>';
   var pay = String(o.pay || "무통장입금");
-  h += '<div class="rpay"><span>결제수단</span><b>' + esc(pay) + '</b>'
-    + (pay.indexOf("무통장") > -1 ? ' <i>NH농협은행 302-1803-5017-81 (예금주 황관훈)</i>' : '') + '</div>';
+  h += '<div class="rpay"><span>결제수단</span><b>' + esc(pay) + '</b></div>';
+  if (pay.indexOf("무통장") > -1)
+    h += '<div class="rpay sub"><span></span><i>NH농협은행 302-1803-5017-81 (예금주 황관훈)</i></div>';
   h += '<div class="rpay"><span>입금자명</span><b>' + esc(o.depositor || "—") + '</b></div>';
   h += '<div class="rpay"><span>현금영수증</span><b>'
     + (o.receiptNo && o.receiptType && o.receiptType !== "none" ? esc(rcptLabel(o)) + ' ' + esc(o.receiptNo) : '미신청')
@@ -1067,8 +1068,9 @@ var RCPT_CSS = [
   '.rtot .grand b{font-size:15px;letter-spacing:-.4px}',
   '.rpay{display:flex;gap:6px;margin-top:3px;font-size:10px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}',
   '.rpay span{flex:0 0 54px;color:#666;font-weight:700}',
-  '.rpay b{font-weight:800}',
-  '.rpay i{font-style:normal;color:#555;font-size:9.5px}',
+  '.rpay b{flex:1 1 auto;min-width:0;font-weight:800}',
+  '.rpay.sub{margin-top:-1px}',
+  '.rpay i{font-style:normal;color:#555;font-size:9.5px;flex:1 1 auto;min-width:0}',
   '.rfoot{margin-top:7px;text-align:center;font-size:10.5px;font-weight:800;color:#333}',
   '.rnote{margin-top:2px;text-align:center;font-size:9px;color:#777}',
   'html.a4 .sheet{width:auto;max-width:196mm;margin:14px auto;display:grid;grid-template-columns:1fr 1fr;gap:6mm;align-items:start}',
