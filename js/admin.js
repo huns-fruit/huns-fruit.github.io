@@ -986,7 +986,9 @@ function receiptInnerHtml(o){
     h += rcptLine("수령장소", esc(STORE.addr));
   } else {
     h += rcptLine("배달주소", esc(o.addr || "—"));
-    if (o.gate) h += rcptLine("공동현관", esc(o.gate), "gate");
+    var gate = String(o.gate || "").trim();
+    /* ‘없음’·‘-’ 같은 빈 값은 영수증에 찍지 않는다 */
+    if (gate && !/^(없음|-|없어요|없습니다)$/.test(gate)) h += rcptLine("공동현관", esc(gate), "gate");
   }
   if (o.memo) h += rcptLine("요청사항", esc(o.memo));
   h += '<div class="rsep"></div>';
@@ -1080,10 +1082,10 @@ var RCPT_CSS = [
   '  body{background:#fff}',
   '  .no-print{display:none!important}',
   '  .sheet{width:auto;max-width:none;margin:0;display:block}',
-  '  .receipt{width:auto;padding:0;margin:0;box-shadow:none;border:0;page-break-after:always;break-after:page}',
+  '  .receipt{width:76mm;margin:0 auto;padding:0;box-shadow:none;border:0;page-break-after:always;break-after:page}',
   '  .receipt:last-child{page-break-after:auto;break-after:auto}',
   '  html.a4 .sheet{display:grid;grid-template-columns:1fr 1fr;gap:6mm}',
-  '  html.a4 .receipt{padding:3mm;border:1px dashed #C9CDD1;page-break-after:auto;break-after:auto;page-break-inside:avoid;break-inside:avoid}',
+  '  html.a4 .receipt{width:auto;margin:0;padding:3mm;border:1px dashed #C9CDD1;page-break-after:auto;break-after:auto;page-break-inside:avoid;break-inside:avoid}',
   '}'
 ].join("\n");
 function receiptDocHtml(list, title){
