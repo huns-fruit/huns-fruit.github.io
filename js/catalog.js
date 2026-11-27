@@ -88,6 +88,9 @@ var PRODUCTS = [
   P({id:"shine-2kg-3", name:"샤인머스켓", unit:"2kg · 3수", cats:["deal","fruit"], img:"shine",
      badges:[["오후 입고","fresh"]], origin:"국내산", desc:"2kg · 3수 · 오후 입고 예정", price:9000,
      tip:"오후에 들어와요 · 입고되는 대로 순서대로 준비해 드려요", tags:["포도 샤인머스켓"]}),
+  P({id:"tomato-5kg-23-home", name:"완숙 토마토", unit:"5kg · 2~3번", cats:["deal","fruit"], img:"tomato", grade:"home",
+     badges:[["특가","hot"]], origin:"국내산", desc:"가정용 실속 5kg (2~3번과)", price:7900,
+     tip:"상온에서 하루 두면 더 익어요", tags:["토마토"]}),
 
   /* ── 11/27 특가 ── 사장님이 불러 준 순서대로 '오늘의 행사'와 상품 목록 맨 위에 노출한다.
      endsOnDate 가 붙은 것은 11/27 하루 특가라 11/28 0시에 자동으로 내려간다.
