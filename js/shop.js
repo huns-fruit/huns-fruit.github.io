@@ -256,7 +256,25 @@ function catItems(){
 }
 function loadCatalog(){ state.catalog = catItems(); }
 
+/* ── 시간 정해 둔 떨이 ── 정한 시간(한국 시간) 동안만 가격·등급을 바꾼다. 사장님 페이지에서 고친 값보다 우선한다.
+   grade:"C" 이면 기존 C급 규칙대로 '매장 포장만(배달 불가)'이 된다. 시간이 지나면 저절로 원래대로 돌아간다. */
+var CLEARANCE = {
+  /* 2026-11-27 사장님: "오늘 3시부터 딸기 3x4 상태가 조금 안 좋아져서 떨이 9,900원 · 픽업만" — 오늘 픽업 접수가 끝나는 20시까지 */
+  "strawberry-3x4": {from:"2026-11-27 15:00", to:"2026-11-27 20:00", price:9900, grade:"C",
+                     comment:"상태가 조금 아쉬워 오늘만 떨이 가격이에요 · 매장 포장만 가능"}
+};
+function kstStamp(){ var d = kstDate(); return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate()) + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+function clearanceOf(id){
+  var c = CLEARANCE[id];
+  if (!c) return null;
+  var now = kstStamp();
+  return (now >= c.from && now < c.to) ? c : null;
+}
+function clearanceKey(){ return Object.keys(CLEARANCE).filter(clearanceOf).join(","); }
+
 function priceOf(p, oi){
+  var cl = clearanceOf(p.id);
+  if (cl && !p.opts) return cl.price;
   var o = ov(p.id);
   if (p.opts){ var a = o.opts || [], v = a[oi]; return (typeof v === "number" && v > 0) ? v : p.opts[oi].price; }
   return (typeof o.price === "number" && o.price > 0) ? o.price : p.price;
@@ -284,10 +302,12 @@ function stockOf(p){
   return null;
 }
 function isSold(p){ return !productAvailable(p) || coreIsSold(p, stockOf); }
-function commentOf(p){ var c = ov(p.id).comment; return c ? String(c).trim() : ""; }
+function commentOf(p){ var cl = clearanceOf(p.id); if (cl && cl.comment) return cl.comment; var c = ov(p.id).comment; return c ? String(c).trim() : ""; }
 /* ── 과일 등급 (사장님이 고친 등급이 있으면 그걸 우선) ── */
 function gradeOf(p, oi){
   if (!p) return null;
+  var cl = clearanceOf(p.id);
+  if (cl && cl.grade && GRADES[cl.grade]) return cl.grade;
   var o = ov(p.id);
   if (o.grade && GRADES[o.grade]) return o.grade;
   if (oi !== undefined && oi !== null && p.ogrades && p.ogrades[oi]) return p.ogrades[oi];
@@ -2462,7 +2482,7 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr(), wasPaused = orderPaused();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr(), wasPaused = orderPaused(), wasClear = clearanceKey();
   setInterval(function(){ var dt = $("#dealTimer"); if (dt) dt.textContent = dealTimerText(); }, 30000);
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow(), psd = pickupSameDayOrderable();
@@ -2474,6 +2494,13 @@ function init(){
       syncBanana(true);
       renderCats();
       renderAll();
+    }
+    /* 떨이 시작·끝 시각이 되면 가격·포장 전용 표시를 다시 그린다 */
+    var ck = clearanceKey();
+    if (ck !== wasClear){
+      wasClear = ck;
+      renderAll();
+      if (state.view === "checkout") renderCheckout();
     }
     var pz = orderPaused();
     if (pz !== wasPaused){
