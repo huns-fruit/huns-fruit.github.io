@@ -64,6 +64,7 @@ function dropOrphans(){
   toast("안내를 닫았어요");
 }
 function restoreOrphans(){
+  if (isStaff()) return;
   var list = readOrphans();
   if (!list.length) return;
   var cur = readOrders();
@@ -867,14 +868,14 @@ function orderCardHtml(o){
     h += '<button class="primary" data-act="done">' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
       +  '<button class="ghost" data-act="accepted">되돌리기</button>';
   } else if (st === "canceled"){
-    h += '<button class="ghost" data-act="' + back + '">↺ 주문 되돌리기</button>';
+    if (!isStaff()) h += '<button class="ghost" data-act="' + back + '">↺ 주문 되돌리기</button>';
   } else {
     h += '<button class="done" disabled>✓ ' + (pick ? "픽업 완료" : "배달 완료") + '</button>'
       +  '<button class="ghost" data-act="' + step3 + '">되돌리기</button>';
   }
   h += '</div>';
   /* 진행 중인 주문(접수·배달·픽업 전)에는 주문 취소 버튼 */
-  if (isLiveStatus(st)){
+  if (isLiveStatus(st) && !isStaff()){
     h += '<div class="oacts cx"><button class="danger" data-cancel="' + esc(o.no) + '">✕ 주문 취소</button></div>';
   }
   h += '</article>';
@@ -1145,6 +1146,12 @@ function printAllReceipts(){
   openReceiptWindow(list);
 }
 function setStatus(no, next){
+  if (isStaff()){
+    if (next === "canceled"){ toast("직원 계정은 주문을 취소할 수 없어요"); return; }
+    var cur0 = null, l0 = readOrders();
+    for (var k=0;k<l0.length;k++) if (l0[k].no === no){ cur0 = l0[k]; break; }
+    if (cur0 && oStatus(cur0) === "canceled"){ toast("취소된 주문은 사장님 계정에서 되돌려 주세요"); return; }
+  }
   if (next !== "received") markAck(no);   /* 상태를 바꾸면 새 주문 알림은 끝난 것 */
   var TOAST = {received: "새 주문으로 되돌렸어요", accepted: "접수했어요 · 손님 화면에 ‘주문 접수’로 보여요",
                delivering: "배달 출발로 바꿨어요 · 손님 화면에 ‘🚚 배달 시작’",
@@ -1172,6 +1179,7 @@ function setStatus(no, next){
    취소 사유·취소 시각·되돌릴 상태(prevStatus)를 주문에 함께 저장한다.
    손님 화면은 5초 폴링으로 status=’canceled’ 를 받아 바로 취소 화면으로 바뀐다. */
 function cancelOrder(no, reason){
+  if (isStaff()){ closeCancel(); toast("직원 계정은 주문을 취소할 수 없어요"); return; }
   var list = readOrders(), found = null;
   for (var i=0;i<list.length;i++) if (list[i].no === no){ found = list[i]; break; }
   if (!found) return;
@@ -1193,6 +1201,7 @@ function cancelOrder(no, reason){
   toast("주문을 취소했어요 · 손님 화면에 ‘❌ 주문 취소’로 보여요");
 }
 function openCancel(no){
+  if (isStaff()){ toast("직원 계정은 주문을 취소할 수 없어요"); return; }
   var list = readOrders(), found = null;
   for (var i=0;i<list.length;i++) if (list[i].no === no){ found = list[i]; break; }
   if (!found) return;
@@ -1311,6 +1320,7 @@ function renderClaims(){
   box.innerHTML = list.map(claimCardHtml).join("");
 }
 function setClaimStatus(no, next){
+  if (isStaff()){ toast("사진 접수 처리는 사장님 계정에서 해 주세요"); return; }
   var list = readClaims();
   for (var i=0;i<list.length;i++){
     if (list[i].no === no){
@@ -1341,15 +1351,18 @@ function prodRowHtml(p){
   h += '<div class="pbody"><div class="pname"><b>' + esc(p.name) + '</b><small>' + esc(p.unit) + '</small>'
     + (sold ? '<span class="low soldtag">품절</span>' : '') + low + gradeChipHtml(p) + '</div>';
   h += '<div class="pctl">';
+  var staff = isStaff();   /* 직원: 가격·등급·코멘트는 보기만 */
   if (p.opts){
     h += '<button class="pexpand" data-expand="' + p.id + '" aria-controls="product-options-' + p.id + '" aria-expanded="' + expanded + '">옵션 ' + p.opts.length + '개 가격</button>';
+  } else if (staff){
+    h += '<span class="pro"><label>가격</label>' + money(effPrice(p, 0)) + '원</span>';
   } else {
     h += '<span class="pfield"><label>가격</label><input type="number" inputmode="numeric" data-price="' + p.id + '" value="' + effPrice(p, 0) + '" aria-label="' + esc(p.name) + ' 가격"><em>원</em></span>';
   }
   h += '<span class="pfield"><label>남은 수량</label><input type="number" inputmode="numeric" data-stock="' + p.id + '" value="' + (stock === null ? "" : stock) + '" placeholder="—" aria-label="' + esc(p.name) + ' 남은 수량"><em>' + unitWord(p) + '</em></span>';
   h += '<button class="ptoggle' + (sold ? ' off' : '') + '" data-sold="' + p.id + '" aria-pressed="' + (sold ? 'true' : 'false') + '">'
     + (sold ? '품절 해제' : '판매중') + '</button>';
-  if (p.grade){
+  if (p.grade && !staff){
     h += '<span class="pfield gfield"><label>등급</label><select data-grade="' + p.id + '" aria-label="' + esc(p.name) + ' 등급">'
       + gradeOpts(adminGrade(p)) + '</select></span>';
   }
@@ -1357,12 +1370,14 @@ function prodRowHtml(p){
   if (p.opts){
     h += '<div class="popts" id="product-options-' + p.id + '"' + (expanded ? '' : ' hidden') + '>';
     for (var i=0;i<p.opts.length;i++){
+      if (staff){ h += '<div class="popt"><span class="ol">' + esc(p.opts[i].label) + '</span><span class="pro">' + money(effPrice(p, i)) + '원</span></div>'; continue; }
       h += '<div class="popt"><span class="ol">' + esc(p.opts[i].label) + '</span>'
         +  '<span class="pfield"><input type="number" inputmode="numeric" data-opt="' + p.id + '" data-oi="' + i + '" value="' + effPrice(p, i) + '" aria-label="' + esc(p.name) + ' ' + esc(p.opts[i].label) + ' 가격"><em>원</em></span></div>';
     }
     h += '</div>';
   }
-  h += '<input class="pcmt" type="text" data-comment="' + p.id + '" value="' + esc(cmt) + '" maxlength="60" placeholder="사장님 한 줄 코멘트 (예: 오늘 새벽에 들어왔어요)" aria-label="' + esc(p.name) + ' 코멘트">';
+  if (staff) h += (cmt ? '<p class="pcmt-ro">💬 ' + esc(cmt) + '</p>' : '');
+  else h += '<input class="pcmt" type="text" data-comment="' + p.id + '" value="' + esc(cmt) + '" maxlength="60" placeholder="사장님 한 줄 코멘트 (예: 오늘 새벽에 들어왔어요)" aria-label="' + esc(p.name) + ' 코멘트">';
   h += '</div></div>';
   return h;
 }
@@ -1386,6 +1401,7 @@ function renderProducts(){
 
 /* ── 탭 ────────────────────────────────── */
 function setTab(t){
+  if (isStaff() && t === "claims") t = "orders";
   state.tab = t;
   $$("#tabs button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-tab") === t); });
   $("#tabOrders").hidden = t !== "orders";
@@ -1467,6 +1483,7 @@ function bind(){
     renderProducts();
   });
   $("#resetAll").addEventListener("click", function(){
+    if (isStaff()){ toast("직원 계정은 전체 초기화를 할 수 없어요"); return; }
     try { localStorage.removeItem(CATALOG_KEY); } catch(e){}
     state.catalog = {};
     pushCatalog({items:{}, updatedAt: Date.now()});
@@ -1516,6 +1533,7 @@ function bind(){
   }
   $("#prodList").addEventListener("input", function(e){
     var t = e.target;
+    if (isStaff() && (t.matches("[data-price]") || t.matches("[data-opt]") || t.matches("[data-comment]"))) return;
     if (t.matches("[data-price]")){
       var pid = t.getAttribute("data-price"), v = parseInt(t.value, 10);
       if (!v || v <= 0) return;
@@ -1556,6 +1574,7 @@ function bind(){
   // 수량 입력 후 포커스를 벗어나면 배지 갱신
   $("#prodList").addEventListener("change", function(e){
     if (e.target.matches("[data-grade]")){
+      if (isStaff()) return;
       var pidg = e.target.getAttribute("data-grade");
       patchItem(pidg, {grade: e.target.value});
       deferRender();
@@ -1599,6 +1618,38 @@ function init(){
    admin.html 은 로그인 전에는 아무 데이터도 부르지 않는다.
    로그인에 성공해야 init() 이 돌아 주문·접수·상품을 불러온다.
    아이디·비밀번호는 코드에 없다 — 화면에서 입력받은 값을 Supabase 에 확인한다. */
+/* ── 권한: 완전 관리자(ADMIN) / 직원(STAFF) ──
+   직원: daon1531@huns-fruit.kr 이거나 Supabase 사용자 user_metadata.role === "staff".
+   직원은 주문 진행(접수·배달·포장·완료)과 품절/판매중·남은 수량만 바꾼다.
+   매출, 사진 접수, 주문 취소·되돌리기, 가격·등급·코멘트 수정, 전체 초기화는 숨기고 막는다.
+   ⚠️ 화면에서 막는 것이라 DB 권한(RLS)까지 나뉜 것은 아니다. */
+var LOGIN_DOMAIN = "@huns-fruit.kr";
+var STAFF_EMAILS = ["daon1531@huns-fruit.kr"];
+var ROLE = "admin";
+function jwtClaims(tok){
+  try {
+    var p = String(tok || "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    while (p.length % 4) p += "=";
+    return JSON.parse(decodeURIComponent(escape(atob(p))));
+  } catch(e){ return {}; }
+}
+function detectRole(){
+  var s = authReadSession();
+  var c = jwtClaims(s && s.access_token);
+  var email = String(c.email || (s && s.email) || "").toLowerCase();
+  var meta = c.user_metadata || {};
+  return (STAFF_EMAILS.indexOf(email) > -1 || meta.role === "staff") ? "staff" : "admin";
+}
+function isStaff(){ return ROLE === "staff"; }
+function applyRole(){
+  ROLE = detectRole();
+  document.body.classList.toggle("staff", isStaff());
+  var b = $("#staffBadge"); if (b) b.hidden = !isStaff();
+  var sn = $(".staffnote"), an = $(".adminnote");
+  if (sn) sn.hidden = !isStaff();
+  if (an) an.hidden = isStaff();
+}
+
 var booted = false;
 var authTimer = null;
 var authBusy = false;
@@ -1673,6 +1724,7 @@ function doLogin(){
   var email = ((em && em.value) || "").trim();
   var pass = (pw && pw.value) || "";
   if (!email || !pass){ setLoginMsg("아이디(이메일)와 비밀번호를 넣어 주세요"); return; }
+  if (email.indexOf("@") < 0) email = email + LOGIN_DOMAIN;   /* daon1531 → daon1531@huns-fruit.kr */
   setLoginMsg("");
   if (btn){ btn.disabled = true; btn.textContent = "로그인 중…"; }
   authLogin(email, pass).then(function(d){
@@ -1693,6 +1745,7 @@ function doLogin(){
 function bootAdmin(){
   if (booted) return;
   booted = true;
+  applyRole();
   unlockApp();
   init();
 }
