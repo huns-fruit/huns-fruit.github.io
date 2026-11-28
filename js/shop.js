@@ -11,7 +11,7 @@ var NTFY_URL = "https://ntfy.sh/hoonie-dangu-order-914288";
 
 var ZONES = {
   pickup: { key:"pickup", name:"포장(매장픽업)", short:"포장", icon:"🏪", min:0,
-    hint:"단구로 398, 상가동2동 1층 101호 · 최소주문 없음 · 포장 09:00~20:00", eta:"포장 가능 시간 09:00~20:00 (준비되면 바로 수령)" },
+    hint:"단구로 398, 상가동2동 1층 101호 · 최소주문 없음 · 포장 09:00~20:00 (일요일 10:00~20:00)", eta:"포장 가능 시간 09:00~20:00 (일요일 10:00~20:00) · 준비되면 바로 수령" },
   city:   { key:"city", name:"원주 시내권 배달", short:"원주 시내권", icon:"🛵", min:30000,
     hint:"30,000원 이상 무료배달 · 낮 12시 마감", eta:"낮 12시 이전 주문 → 당일 또는 익일 배달" },
   outer:  { key:"outer", name:"기업도시·태장·우산동 배달", short:"기업·태장·우산동", icon:"🚛", min:50000,
@@ -190,12 +190,15 @@ var state = {
   catalog: {},       // 사장님 페이지가 고친 상품 정보 {pid:{price,opts,soldout,stock,comment}}
   orders: []         // 이 기기에 접수된 주문 (최신순)
 };
-/* 당일 픽업 주문은 08:00~20:00 접수, 실제 픽업은 09:00~20:00 */
-var PICKUP_ORDER_OPEN_H = 8;
-var PICKUP_OPEN_H = 9;
+/* 당일 픽업 주문은 08:00~20:00 접수, 실제 픽업은 09:00~20:00.
+   2026-11-28 사장님: "일요일 영업시간 10시~20시" — 일요일(day 0)만 접수·픽업 모두 10:00~20:00, 평일·토요일은 그대로 둔다. */
 var PICKUP_CLOSE_H = 20;
-var PICKUP_ORDER_HOURS = "08:00~20:00";
-var PICKUP_HOURS = "09:00~20:00";
+/* 기준 날짜가 일요일인가 — off 0 = 오늘, 1 = 내일 */
+function pickupSundayAt(off){ return (kstWeekday() + (off || 0)) % 7 === 0; }
+function pickupOrderOpenHAt(off){ return pickupSundayAt(off) ? 10 : 8; }   /* 픽업 주문 접수 시작 */
+function pickupOpenHAt(off){ return pickupSundayAt(off) ? 10 : 9; }         /* 실제 픽업 시작 */
+function pickupOrderHoursAt(off){ return pickupSundayAt(off) ? "10:00~20:00" : "08:00~20:00"; }
+function pickupHoursAt(off){ return pickupSundayAt(off) ? "10:00~20:00" : "09:00~20:00"; }
 var SLOT_DEF = {
   delivery_city: [
     {key:"today_pm",    label:"오늘 오후 배달", sub:"낮 12시 이전 주문", eta:"오늘 오후 배달"},
@@ -382,16 +385,25 @@ function orderPauseBannerHtml(){
 /* 한국 시간 기준 지금이 몇 분인지 (00:00 = 0) */
 function kstMin(){ var d = kstDate(); return d.getHours()*60 + d.getMinutes(); }
 function pad2(n){ return String(n).padStart(2,"0"); }
-function pickupSameDayOrderable(){ var m = kstMin(); return m >= PICKUP_ORDER_OPEN_H*60 && m < PICKUP_CLOSE_H*60; }
-function pickupOpenNow(){ var m = kstMin(); return m >= PICKUP_OPEN_H*60 && m < PICKUP_CLOSE_H*60; }
-/* 자정~08시 사이에는 '오늘 오전 9시'가 아직 남아 있다 — 픽업 안내에서 오늘/내일을 고른다 */
-function pickupDayWord(){ return kstMin() < PICKUP_ORDER_OPEN_H*60 ? "오늘" : "내일"; }
-/* 08:00부터 당일 픽업을 예약하고, 영업 전에는 오후 픽업만 보여 준다 */
+function pickupSameDayOrderable(){ var m = kstMin(); return m >= pickupOrderOpenHAt(0)*60 && m < PICKUP_CLOSE_H*60; }
+function pickupOpenNow(){ var m = kstMin(); return m >= pickupOpenHAt(0)*60 && m < PICKUP_CLOSE_H*60; }
+/* 접수 시작 전이면 '오늘' 픽업이 아직 남아 있다(일요일은 10시부터) — 픽업 안내에서 오늘/내일을 고른다 */
+function pickupDayWord(){ return kstMin() < pickupOrderOpenHAt(0)*60 ? "오늘" : "내일"; }
+/* 다음에 픽업할 날의 안내 — 평일·토 '내일 오전 9시 / 09:00~20:00', 일요일 '오전 10시 / 10:00~20:00' */
+function pickupNext(){
+  var day = pickupDayWord(), off = (day === "내일" ? 1 : 0);
+  var dayName = day + (off === 1 && pickupSundayAt(1) ? "(일요일)" : "");
+  var when = dayName + " 오전 " + pickupOpenHAt(off) + "시";
+  return {day:dayName, when:when, label:when + " 이후 픽업", sub:"포장 가능 시간 " + pickupHoursAt(off)};
+}
+/* 지금 안내할 픽업 시간 — 지금 픽업 중이면 오늘, 아니면 다음 픽업 날 기준(일요일 10:00~20:00) */
+function pickupHoursNow(){ return pickupHoursAt(pickupOpenNow() ? 0 : (pickupDayWord() === "내일" ? 1 : 0)); }
+/* 08:00(일요일은 10:00)부터 당일 픽업을 예약하고, 영업 전에는 오후 픽업만 보여 준다 */
 function pickupSlots(){
   var m = kstMin(), closeM = PICKUP_CLOSE_H*60, list = [];
   if (!pickupSameDayOrderable()){
-    return [{key:"tomorrow_am", label:pickupDayWord() + " 오전 9시 이후 픽업",
-             sub:"포장 가능 시간 " + PICKUP_HOURS, eta:pickupDayWord() + " 오전 9시 이후 픽업"}];
+    var np = pickupNext();
+    return [{key:"tomorrow_am", label:np.label, sub:np.sub, eta:np.label}];
   }
   if (!pickupOpenNow()){
     return [{key:"today_pm", label:"오늘 오후 픽업",
@@ -414,8 +426,8 @@ function pickupSlots(){
 }
 function closedMsg(){
   return "오늘 당일 배달은 낮 12시에 마감되었어요. 지금 주문하시면 " + nextDeliveryMorningWord() + " 오전 배송으로 접수됩니다. ("
-    + (pickupOpenNow() ? "매장 포장은 " + PICKUP_HOURS + " 안에서 지금도 가능해요"
-                       : "매장 포장은 영업시간 " + PICKUP_HOURS + "에 가능해요") + ")";
+    + (pickupOpenNow() ? "매장 포장은 " + pickupHoursNow() + " 안에서 지금도 가능해요"
+                       : "매장 포장은 영업시간 " + pickupHoursNow() + "에 가능해요") + ")";
 }
 function deliveryClosedBannerHtml(){
   return '<div class="banner closed" id="closedBanner">'
@@ -431,16 +443,16 @@ function deliveryClosedNote(pad){
 }
 /* 당일 픽업 주문 접수 시간(08:00~20:00) 밖일 때의 안내 */
 function pickupClosedText(){
-  return "오늘 픽업 주문은 " + PICKUP_ORDER_HOURS + " 접수돼요. 지금 주문하시면 " + pickupDayWord() + " 오전 9시 이후에 가져가실 수 있어요.";
+  return "오늘 픽업 주문은 " + pickupOrderHoursAt(0) + " 접수돼요. 지금 주문하시면 " + pickupNext().when + " 이후에 가져가실 수 있어요.";
 }
 function pickupClosedBannerHtml(){
   return '<div class="banner closed" id="pickupClosedBanner">'
-    + '<b><span class="bn-ico">⏰</span>오늘 픽업 주문 접수 시간 · ' + PICKUP_ORDER_HOURS + '</b>'
+    + '<b><span class="bn-ico">⏰</span>오늘 픽업 주문 접수 시간 · ' + pickupOrderHoursAt(0) + '</b>'
     + '<small>' + pickupClosedText() + '</small></div>';
 }
 function pickupClosedNote(pad){
   return '<div class="banner closed" style="margin:' + (pad ? '12px 0 0' : '10px 16px 0') + '">'
-    + '<b><span class="bn-ico">⏰</span>오늘 픽업 주문 접수 시간 · ' + PICKUP_ORDER_HOURS + '</b>'
+    + '<b><span class="bn-ico">⏰</span>오늘 픽업 주문 접수 시간 · ' + pickupOrderHoursAt(0) + '</b>'
     + '<small>' + pickupClosedText() + '</small></div>';
 }
 
@@ -513,7 +525,7 @@ function slotListRaw(){
 function sundayBannerHtml(){
   var t = isSundayKst() ? "오늘(일요일)은 배달을 쉬어요" : "내일(일요일)은 배달을 쉬어요";
   return '<div class="banner closed"><b><span class="bn-ico">🗓️</span>' + t + '</b>'
-    + '<small>재고가 맞지 않아 월요일 배달 주문도 미리 받지 않아요 · 배달 주문은 월요일에 다시 받아요 · 매장 포장은 ' + PICKUP_HOURS + ' 가능해요</small>'
+    + '<small>재고가 맞지 않아 월요일 배달 주문도 미리 받지 않아요 · 배달 주문은 월요일에 다시 받아요 · 매장 포장은 ' + pickupHoursAt(isSundayKst() ? 0 : 1) + ' 가능해요</small>'
     + '<div class="chips"><button data-mode="pickup">🏪 포장으로 바꾸기</button></div></div>';
 }
 /* ── 현금영수증 표기 ── */
@@ -544,7 +556,7 @@ function curSlot(){
 function slotBoxHtml(inBanner){
   var list = slotList(), cur = curSlot(), h = "";
   h += '<div class="slotbox' + (inBanner ? ' inbanner' : '') + '">'
-    +  '<div class="ct">🕞 받는 시간 <em>' + (state.mode === "pickup" ? "매장 픽업 · " + PICKUP_HOURS : "배달 일정") + '</em></div>'
+    +  '<div class="ct">🕞 받는 시간 <em>' + (state.mode === "pickup" ? "매장 픽업 · " + pickupHoursNow() : "배달 일정") + '</em></div>'
     +  '<div class="slots">';
   for (var i=0;i<list.length;i++){
     var s = list[i];
@@ -860,7 +872,7 @@ function renderMode(){
     el.innerHTML = (pickupSameDayOrderable() ? '' : pickupClosedBannerHtml())
       + '<div class="banner pick">'
       + '<b><span class="bn-ico">🏪</span>매장 포장 · 최소주문 없음</b>'
-      + '<small>단구로 398 상가동 101호 · 포장 가능 ' + PICKUP_HOURS + ' · 준비되면 바로 받아 가세요</small>'
+      + '<small>단구로 398 상가동 101호 · 포장 가능 ' + pickupHoursNow() + ' · 준비되면 바로 받아 가세요</small>'
       + slotBoxHtml(true)
       + '</div>';
   } else {
@@ -1272,7 +1284,7 @@ function renderCart(){
   }
   var h = modeSegHtml();
   h += '<p class="seghint">' + (state.mode === "pickup"
-      ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음<br>🕒 포장 가능 " + PICKUP_HOURS
+      ? "🏪 단구로 398 상가동 101호에서 받아 가세요 · 최소주문 없음<br>🕒 포장 가능 " + pickupHoursNow()
       : (state.zone === "city" ? "🛵 원주 시내권 · 30,000원 이상 무료배달 · 계란 금액 제외" : "🚛 기업·태장·우산동 · 50,000원 이상 무료배달 · 계란 금액 제외")) + '</p>';
   if (state.mode === "delivery"){
     h += zoneChipsHtml();
@@ -1430,8 +1442,8 @@ var POLICIES = {
   shipping: {
     title: "배송 및 교환·환불 정책",
     body: '<p class="polmeta">시행일 2026년 11월 22일 · 훈이네과일야채 단구점</p>'
-      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다. 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>포장 주문은 최소주문 금액이 없습니다.</li></ul>'
-      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다.</li><li>매일 <b>오후 6시~9시</b>는 재고 확인 시간이라 배달 주문을 받지 않습니다(오후 9시부터 다시 접수). 오후 8시~9시는 포장 주문도 쉽니다.</li><li><b>일요일은 배달하지 않습니다.</b> 토요일 낮 12시 이후와 일요일에 배달로 주문하시면 월요일 오전에 배달됩니다. 일요일에도 매장 포장은 가능합니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
+      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다(일요일은 주문 접수·픽업 모두 <b>10:00~20:00</b>). 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>포장 주문은 최소주문 금액이 없습니다.</li></ul>'
+      + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다.</li><li>매일 <b>오후 6시~9시</b>는 재고 확인 시간이라 배달 주문을 받지 않습니다(오후 9시부터 다시 접수). 오후 8시~9시는 포장 주문도 쉽니다.</li><li><b>일요일은 배달하지 않습니다.</b> 토요일 낮 12시 이후와 일요일에 배달로 주문하시면 월요일 오전에 배달됩니다. 일요일에도 매장 포장은 가능합니다. 매장 포장은 영업시간 09:00~20:00(일요일 10:00~20:00) 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
       + '<h4>3. 신선식품 교환·환불</h4><p>과일·채소는 신선식품이라 받으신 날 상태를 확인해 주세요. 아래 경우에는 <b>사진 접수</b>로 알려 주시면 확인 후 <b>교환 또는 부분환불</b>로 보상해 드립니다.</p><ul><li>받은 날 상한·무른·곰팡이·파손 등 이상이 있는 경우</li><li>주문한 상품과 다르거나 수량이 모자란 경우</li><li>표시된 등급·규격과 현저히 다른 경우</li></ul>'
       + '<h4>4. 접수와 처리 절차</h4><ul><li>화면의 <b>📷 받은 상품 이상하면 사진 접수</b>를 눌러 사진(최대 3장)·품목·사유·연락처를 보내 주세요.</li><li>사장님이 사진을 확인한 뒤 연락드리고, 교환·부분환불·다음 주문 보상 중에서 알맞은 방법으로 처리합니다.</li><li>급하시면 고객센터 010-9142-1531로 전화 주세요. 접수번호(CL…)를 알려 주시면 바로 확인합니다.</li></ul>'
       + '<h4>5. 교환·환불이 어려운 경우</h4><ul><li>수령한 다음 날 이후에 알려 주신 경우(다만 보관 중 이상이 생긴 것이 확인되면 상담해 드립니다)</li><li>이미 드셨거나 조리하신 경우, 손질·보관을 잘못하신 경우</li><li>단순 변심으로 받으신 날 이후에 요청하신 경우</li></ul>'
@@ -1710,9 +1722,9 @@ function renderCheckout(){
       + '<span class="fhint">배달 기사님이 현관을 열 수 있게 적어 주세요 · 비워 두어도 주문돼요</span></div>';
   } else {
     h += (pickupSameDayOrderable() ? '' : pickupClosedNote(true))
-      + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + PICKUP_HOURS + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
+      + '<div class="warn green" style="margin-top:12px">🏪 <b>포장(매장픽업)</b> · 포장 가능 시간 <b>' + pickupHoursNow() + '</b><br>' + STORE.addr + '<br>전화 ' + STORE.tel
       + (pickupOpenNow() ? ' · 준비되면 바로 가져가실 수 있어요.'
-          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 ' + pickupDayWord() + ' 오전 9시 이후 픽업이에요.')) + '</div>';
+          : (pickupSameDayOrderable() ? ' · 오늘 오후 픽업으로 예약할 수 있어요.' : ' · 지금 주문은 ' + pickupNext().label + '이에요.')) + '</div>';
   }
   h += appleDealNoticeHtml();
   h += slotBoxHtml();
@@ -1757,7 +1769,7 @@ function renderCheckout(){
     + '<section class="csec"><h3><span class="sn">5</span>결제 금액</h3>'
     + '<div class="sumcard" style="margin:0">' + sumRowsHtml() + '</div>'
     + '<p class="simnote">🕒 받는 시간: <b>' + curSlot().label + '</b><br>' + (state.mode === "pickup"
-        ? "🏪 매장 포장 · 최소주문 없음 · 포장 가능 " + PICKUP_HOURS
+        ? "🏪 매장 포장 · 최소주문 없음 · 포장 가능 " + pickupHoursNow()
         : z.name + (meetMin() ? " · 무료배달 조건 충족" : " · 최소금액 미달")) + '</p>'
     + '</section>';
 
@@ -2011,8 +2023,8 @@ function showDone(ord){
   var guide = "";
   if (o.mode === "pickup"){
     guide = (st === "ready" || st === "done")
-      ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00"
-      : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00";
+      ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00 (일요일 10:00~20:00)"
+      : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00 (일요일 10:00~20:00)";
   } else if (o.zone === "city"){
     guide = "🛵 <b>낮 12시 이전 주문은 당일 또는 익일 배달</b>이에요.<br>배달 전에 기사님이 " + esc(o.phone) + "로 연락드려요.";
   } else {
@@ -2106,9 +2118,9 @@ function bind(){
     if (mb){
       setMode(mb.getAttribute("data-mode"));
       toast(state.mode === "pickup"
-        ? (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + PICKUP_HOURS + " 안에서 준비해 드려요"
+        ? (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + pickupHoursNow() + " 안에서 준비해 드려요"
                            : (pickupSameDayOrderable() ? "포장 주문으로 바꿨어요 · 오늘 오후 픽업을 예약할 수 있어요"
-                                                       : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 " + pickupDayWord() + " 오전 9시 이후 픽업으로 예약돼요"))
+                                                       : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 " + pickupNext().label + "으로 예약돼요"))
         : "배달 주문으로 바꿨어요");
       return;
     }
@@ -2386,9 +2398,9 @@ function init(){
     wasClosed = c; wasPickupOpen = po; wasPickupSameDay = psd;
     renderAll();
     if (state.view === "checkout") renderCheckout();
-    if (c && state.mode === "delivery") toast("낮 12시가 지나 오늘 배달이 마감됐어요 · 포장은 " + (pickupOpenNow() ? PICKUP_HOURS + " 안에서 가능해요" : (pickupSameDayOrderable() ? "오늘 오후 픽업 예약이 가능해요" : "내일 09:00부터 가능해요")));
+    if (c && state.mode === "delivery") toast("낮 12시가 지나 오늘 배달이 마감됐어요 · 포장은 " + (pickupOpenNow() ? pickupHoursNow() + " 안에서 가능해요" : (pickupSameDayOrderable() ? "오늘 오후 픽업 예약이 가능해요" : pickupNext().when + "부터 가능해요")));
     if (state.mode === "pickup" && startedTodayPickup) toast("오늘 픽업 주문 접수가 시작됐어요 · 오늘 오후 픽업을 선택할 수 있어요");
-    else if (state.mode === "pickup" && endedTodayPickup) toast("오늘 픽업 주문이 마감됐어요 · 내일 오전 9시 이후 픽업으로 예약돼요");
+    else if (state.mode === "pickup" && endedTodayPickup) toast("오늘 픽업 주문이 마감됐어요 · " + pickupNext().label + "으로 예약돼요");
   }, 30000);
 }
 

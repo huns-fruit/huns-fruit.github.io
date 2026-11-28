@@ -713,13 +713,14 @@ function tick(){
   var days = ["일","월","화","수","목","금","토"];
   $("#today").textContent = (d.getMonth()+1) + "월 " + d.getDate() + "일 (" + days[d.getDay()] + ")";
   $("#clock").textContent = hhmm(d.getTime());
-  /* 매장 영업시간 09:00~20:00 — 시간에 맞춰 영업중/영업종료 */
+  /* 매장 영업시간 09:00~20:00 (일요일 10:00~20:00) — 시간에 맞춰 영업중/영업종료 */
   var st = document.querySelector(".open");
   if (st){
-    var m = d.getHours()*60 + d.getMinutes(), openNow = m >= 9*60 && m < 20*60;
+    var openH = d.getDay() === 0 ? 10 : 9;
+    var m = d.getHours()*60 + d.getMinutes(), openNow = m >= openH*60 && m < 20*60;
     st.textContent = openNow ? "영업중" : "영업종료";
     st.classList.toggle("off", !openNow);
-    st.title = "매장 영업시간 09:00~20:00";
+    st.title = "매장 영업시간 " + (d.getDay() === 0 ? "일요일 10:00~20:00" : "09:00~20:00");
   }
 }
 
