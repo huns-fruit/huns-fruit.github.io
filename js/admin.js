@@ -1163,6 +1163,8 @@ function setStatus(no, next){
     if (list[i].no === no){
       list[i].status = next;
       list[i].statusAt = Date.now();
+      /* 끝난 주문에는 공동현관 비밀번호를 남기지 않는다 (2026-11-29 보안 강화) */
+      if (next === "done" && list[i].gate){ delete list[i].gate; list[i].gateCleared = true; }
       if (next !== "canceled") clearCancelFields(list[i]);   /* 취소를 물리면 취소 기록도 지운다 */
       break;
     }
@@ -1619,12 +1621,17 @@ function init(){
    로그인에 성공해야 init() 이 돌아 주문·접수·상품을 불러온다.
    아이디·비밀번호는 코드에 없다 — 화면에서 입력받은 값을 Supabase 에 확인한다. */
 /* ── 권한: 완전 관리자(ADMIN) / 직원(STAFF) ──
-   직원: daon1531@huns-fruit.kr 이거나 Supabase 사용자 user_metadata.role === "staff".
+   관리자: ADMIN_EMAILS 에 있거나 Supabase app_metadata.role === "admin".
+   직원: STAFF_EMAILS 에 있거나 app_metadata.role === "staff" (user_metadata.role 은 @huns-fruit.kr 계정만 인정).
+   어느 명단에도 없는 계정은 데이터를 하나도 불러오지 않고 바로 로그아웃 (2026-11-29 보안 강화).
    직원은 주문 진행(접수·배달·포장·완료)과 품절/판매중·남은 수량만 바꾼다.
    매출, 사진 접수, 주문 취소·되돌리기, 가격·등급·코멘트 수정, 전체 초기화는 숨기고 막는다.
    ⚠️ 화면에서 막는 것이라 DB 권한(RLS)까지 나뉜 것은 아니다. */
 var LOGIN_DOMAIN = "@huns-fruit.kr";
-var STAFF_EMAILS = ["daon1531@huns-fruit.kr"];
+/* 아이디만 넣었을 때 실제 계정 이메일 (Supabase 에 만들어 둔 계정) */
+var LOGIN_ALIAS = { "daon1531": "daon1531@naver.com", "admin": "admin@huns-fruit.kr" };
+var ADMIN_EMAILS = ["admin@huns-fruit.kr", "hhh3350@naver.com"];
+var STAFF_EMAILS = ["daon1531@naver.com", "daon1531@huns-fruit.kr"];
 var ROLE = "admin";
 function jwtClaims(tok){
   try {
@@ -1637,8 +1644,11 @@ function detectRole(){
   var s = authReadSession();
   var c = jwtClaims(s && s.access_token);
   var email = String(c.email || (s && s.email) || "").toLowerCase();
-  var meta = c.user_metadata || {};
-  return (STAFF_EMAILS.indexOf(email) > -1 || meta.role === "staff") ? "staff" : "admin";
+  var meta = c.user_metadata || {}, app = c.app_metadata || {};
+  if (ADMIN_EMAILS.indexOf(email) > -1 || app.role === "admin") return "admin";
+  if (STAFF_EMAILS.indexOf(email) > -1 || app.role === "staff") return "staff";
+  if (meta.role === "staff" && /@huns-fruit\.kr$/.test(email)) return "staff";
+  return "none";
 }
 function isStaff(){ return ROLE === "staff"; }
 function applyRole(){
@@ -1724,7 +1734,10 @@ function doLogin(){
   var email = ((em && em.value) || "").trim();
   var pass = (pw && pw.value) || "";
   if (!email || !pass){ setLoginMsg("아이디(이메일)와 비밀번호를 넣어 주세요"); return; }
-  if (email.indexOf("@") < 0) email = email + LOGIN_DOMAIN;   /* daon1531 → daon1531@huns-fruit.kr */
+  if (email.indexOf("@") < 0){   /* 아이디만: 등록된 별칭이 있으면 그 이메일, 없으면 @huns-fruit.kr */
+    var idk = email.toLowerCase();
+    email = LOGIN_ALIAS[idk] || (idk + LOGIN_DOMAIN);
+  }
   setLoginMsg("");
   if (btn){ btn.disabled = true; btn.textContent = "로그인 중…"; }
   authLogin(email, pass).then(function(d){
@@ -1744,8 +1757,9 @@ function doLogin(){
 }
 function bootAdmin(){
   if (booted) return;
-  booted = true;
   applyRole();
+  if (ROLE === "none"){ endAuth("이 계정은 관리자 페이지 권한이 없어요. 사장님께 문의해 주세요."); return; }
+  booted = true;
   unlockApp();
   init();
 }
