@@ -70,6 +70,39 @@ var PRODUCTS = [
   P({id:STRAWBERRY_BOX, name:"딸기 2kg 특가", unit:"1박스 · 4팩 · 3×4", endsOnSale:true,
      cats:["deal","fruit"], img:"strawberry", price:40000, stock:0,
      badges:[["50박스 한정","hot"]], desc:"포장 단독 구매 가능 · 배달은 다른 상품 15,000원 이상 함께 주문"}),
+  /* ── 11/29(일) 스레드 특가 13종 ── 2026-11-28 밤 사장님이 불러 준 순서 그대로
+     '오늘의 행사'와 상품 목록 맨 위에 노출한다. 남은 수량은 사장님이 직접 고치므로 여기서 잡지 않는다.
+     양배추·고구마는 assets/img 에 맞는 사진이 아직 없어 사진 없이 올린다(사진이 들어오면 img 를 채우면 된다). */
+  P({id:"emperor", name:"중문 황제귤", unit:"5kg · M", cats:["fruit"], img:"tangerine", grade:"A",
+     badges:[["프리미엄","gift"]], origin:"제주 중문", desc:"중문 명품 귤 M 사이즈", price:30000, tags:["귤 감귤"]}),
+  P({id:"tangerine-home-2l", name:"행사용 귤", unit:"5kg · 2L", cats:["deal","fruit"], img:"tangerine",
+     grade:"B", origin:"제주산", price:5000, badges:[["특가","hot"]], tags:["귤 감귤"]}),
+  P({id:"tangerine-seogwipo-m", name:"서귀포 감귤 B급", unit:"5kg · M", cats:["fruit"], img:"tangerine",
+     grade:"B", origin:"제주 서귀포", price:9900, startsOnSale:true}),
+  P({id:"apple-15", name:"안동 부사사과", unit:"20알", cats:["fruit"], img:"apple", grade:"normal",
+     origin:"안동", desc:"가정용 20알", price:7900, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
+  P({id:"persimmon", name:"부유 단감", unit:"20알", cats:["fruit"], img:"persimmon", grade:"home",
+     badges:[["정품","fresh"]], origin:"국내산", desc:"아삭한 부유 단감 20알", price:5000, tags:["감 부유"]}),
+  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
+     badges:[["행사","hot"]], origin:"베트남/필리핀산", desc:"일반 바나나 · 1송이 500원 · 오늘만 이 가격", price:500, stock:8,
+     tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
+  P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
+     badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:5000, tags:["파인애플"],
+     tip:"뒤집어 하루 두면 더 달아져요"}),
+  P({id:"dragonfruit-white-4-1127", name:"화이트 용과", unit:"4개", cats:["deal","fruit"],
+     badges:[["특가","hot"]], origin:"베트남산", price:6900, tags:["용과 드래곤후르츠"]}),
+  P({id:"newstein", name:"윤홍희 뉴스틴 포도", unit:"2kg", cats:["fruit"], img:"shine", grade:"A",
+     badges:[], origin:"국내산", desc:"샤인머스켓과 비슷한 포도 · 망고스틴 맛과 식감", price:5000, tags:["포도 샤인 뉴스틴"],
+     tip:"망고스틴을 연상시키는 맛과 식감! 샤인머스켓과 비슷한 포도 · 당도 자신!"}),
+  P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 6수", cats:["deal","fruit"], img:"shine",
+     badges:[["특가","hot"]], price:7900, tags:["포도 샤인머스켓"]}),
+  P({id:"bansee-25-deal-1127", name:"반시", unit:"2.5kg · S", cats:["deal","fruit"], img:"persimmon",
+     badges:[["특가","hot"]], origin:"국내산", price:3900, tags:["감 홍시"]}),
+  P({id:"cabbage-yang-1", name:"양배추", unit:"1망", cats:["veg","deal"],
+     badges:[["행사","hot"]], origin:"국내산", price:5000, tags:["양배추"]}),
+  P({id:"sweetpotato-kkulbam-10kg", name:"고구마 (꿀밤)", unit:"소 · 10kg", cats:["veg","deal"],
+     badges:[["행사","hot"]], origin:"국내산", price:7900, tags:["고구마","꿀밤고구마"]}),
+
   /* ── 11/28 가격 (2026-11-27 밤 사장님) ── 딸기 킹스베리·3×4 A급·3×4 일반·스치딸기, 흑토마토, 샤인머스켓 2kg 3수 */
   P({id:"strawberry-kings", name:"딸기 킹스베리", unit:"1팩", cats:["fruit","deal"], img:"strawberry", grade:"A",
      badges:[["프리미엄","hot"]], origin:"국내산", desc:"큼직한 킹스베리 1팩", price:16800,
@@ -97,16 +130,10 @@ var PRODUCTS = [
      신고배·그린키위·샤인머스켓·애호박·단호박·왕란은 평소 가격과 같아 날짜 없이 행사 칸에 둔다. */
   P({id:"apple-5kg-deal-1127", name:"안동 부사사과", unit:"5kg (24~26알 가량)", cats:["deal","fruit"], img:"apple",
      badges:[["특가","hot"]], origin:"안동", price:9900, endsOnDate:"2026-11-27", tags:["사과 부사"]}),
-  P({id:"dragonfruit-white-4-1127", name:"화이트 용과", unit:"4개", cats:["deal","fruit"],
-     badges:[["특가","hot"]], origin:"베트남산", price:9900, endsOnDate:"2026-11-27", tags:["용과 드래곤후르츠"]}),
   P({id:"singobae-10", name:"신고배", unit:"10개", cats:["deal","fruit"],
      badges:[["특가","hot"]], price:5000, tags:["신고배 배"]}),
   P({id:"greenkiwi", name:"그린키위", unit:"20알", cats:["deal","fruit"], img:"kiwi", grade:"home",
      badges:[["특가","hot"]], origin:"국내산", desc:"새콤한 그린키위 20알", price:8000, tags:["키위"]}),
-  P({id:"bansee-25-deal-1127", name:"반시", unit:"2.5kg", cats:["deal","fruit"], img:"persimmon",
-     badges:[["특가","hot"]], origin:"국내산", price:3900, endsOnDate:"2026-11-27", tags:["감 홍시"]}),
-  P({id:"shine-3kg-7", name:"샤인머스켓", unit:"3kg · 7수", cats:["deal","fruit"], img:"shine",
-     badges:[["특가","hot"]], price:9900, tags:["포도 샤인머스켓"]}),
   P({id:"danhobak", name:"단호박", unit:"1개", cats:["deal","veg"],
      badges:[["특가","hot"]], origin:"국내산", price:1000, tags:["호박 단호박"]}),
   P({id:"aehobak", name:"애호박", unit:"1개", cats:["veg"], img:"aehobak", badges:[], origin:"국내산", desc:"1개", price:1500, tags:["호박"]}),
@@ -114,9 +141,7 @@ var PRODUCTS = [
      badges:[["특가","hot"]], origin:"국내산", desc:"판 없이 알만 담은 왕란 30구", price:6000, tags:["계란 달걀 왕란"],
      tip:"냉장고 안쪽 칸에 두세요"}),
 
-  /* ── 안동 부사사과 일반 신선행사 — 옵션 대신 3개 상품으로 (2026-11-26) ── */
-  P({id:"apple-15", name:"안동 부사사과", unit:"15개", cats:["fruit"], img:"apple", grade:"normal",
-     origin:"안동", desc:"가정용 15개", price:7900, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
+  /* ── 안동 부사사과 일반 신선행사 — 옵션 대신 상품으로 나눔 (2026-11-26 · 15개 상품은 11/29 특가에서 20알로 맨 위로 옮김) ── */
   P({id:"apple-10kg", name:"안동 부사사과", unit:"10kg · 한 상자", cats:["fruit"], img:"apple", grade:"normal",
      origin:"안동", price:20000, tip:"흐르는 물에 씻어 껍질째 드세요", tags:["사과 부사"]}),
   P({id:"apple-a-10kg", name:"안동 부사사과 A급", unit:"10kg · 품질보증", cats:["fruit"], img:"apple", grade:"A",
@@ -139,18 +164,7 @@ var PRODUCTS = [
   P({id:"bansee-5kg-deal", endsOnSale:true, name:"반시", unit:"5kg", cats:["deal","fruit"], img:"persimmon",
      badges:[["특가","hot"]], origin:"국내산", desc:"부드럽게 익은 반시 5kg 특가", price:6900, endsOnDate:"2026-11-26", tags:["감 홍시"]}),
 
-  /* 가정용 감귤 B급 2L — 내일 행사 7,900원. L(5kg)은 일반 과일 목록에 9,900원으로 따로 둔다(tangerine-home-l) */
-  P({id:"tangerine-home-2l", name:"가정용 감귤 B급", unit:"5kg · 2L", cats:["deal","fruit"], img:"tangerine",
-     grade:"B", origin:"제주산", price:7900, badges:[["특가","hot"]], endsOnDate:"2026-11-26"}),
-
   /* ── 다른 행사 ── */
-  P({id:"banana-deal", name:"바나나", unit:"1송이", cats:["deal"], img:"banana", grade:"normal",
-     badges:[["행사","hot"]], origin:"베트남/필리핀산", desc:"일반 바나나 · 1송이 1,000원 · 오늘만 이 가격", price:1000, stock:8,
-     tip:"노랗게 익으면 냉장 보관하세요", tags:["일반 바나나 행사"]}),
-
-  P({id:"pineapple-deal", name:"감숙왕 파인애플", unit:"4개", cats:["deal"], img:"pineapple", grade:"home",
-     badges:[["행사","hot"]], origin:"필리핀산", desc:"달콤한 감숙왕 4개 · 행사가", price:9900, tags:["파인애플"],
-     tip:"뒤집어 하루 두면 더 달아져요"}),
 
   P({id:"daebong-15", name:"대봉감 가정용", unit:"15알", cats:["deal"], img:"daebong", grade:"C",
      badges:[["행사","hot"]], origin:"국내산", desc:"15알 행사 · 익혀 드세요", price:9900, tags:["감"]}),
@@ -181,9 +195,6 @@ var PRODUCTS = [
   P({id:"mango", name:"골드망고", unit:"4개", cats:["fruit","deal"], img:"mango", grade:"home",
      badges:[["행사","hot"]], origin:"태국산", desc:"4개 한 세트 · 오늘 행사가", price:9900, tags:["망고"]}),
 
-  P({id:"persimmon", name:"부유 단감", unit:"20알", cats:["fruit"], img:"persimmon", grade:"home",
-     badges:[["정품","fresh"]], origin:"국내산", desc:"아삭한 부유 단감 20알", price:7900, tags:["감 부유"]}),
-
   P({id:"daebong-gift", name:"대봉감", unit:"4kg", cats:["fruit"], img:"daebong", grade:"A",
      badges:[["선물용","gift"]], origin:"국내산", desc:"선물용 박스 포장", price:15000, tags:["감"]}),
 
@@ -202,19 +213,12 @@ var PRODUCTS = [
 
   P({id:"tangerine-home-l", name:"가정용 감귤 B급", unit:"5kg · L", cats:["fruit"], img:"tangerine",
      grade:"B", origin:"제주산", price:9900}),
-  P({id:"tangerine-seogwipo-m", name:"서귀포 감귤 B급", unit:"5kg · M", cats:["fruit"], img:"tangerine",
-     grade:"B", origin:"제주 서귀포", price:12800, startsOnSale:true}),
   P({id:"tangerine-small", name:"제주 감귤", unit:"5kg · S·2S", cats:["fruit"], img:"tangerine",
      origin:"제주산", price:15000, startsOnSale:true}),
 
-  P({id:"emperor", name:"중문 황제귤", unit:"5kg · M", cats:["fruit"], img:"tangerine", grade:"A",
-     badges:[["프리미엄","gift"]], origin:"제주 중문", desc:"중문 명품 귤 M 사이즈", price:36000, tags:["귤 감귤"]}),
-
-  P({id:"newstein", name:"윤홍희 뉴스틴 포도", unit:"2kg", cats:["fruit"], img:"shine", grade:"A",
-     badges:[], origin:"국내산", desc:"샤인머스켓과 비슷한 포도 · 망고스틴 맛과 식감", price:15000, tags:["포도 샤인 뉴스틴"],
-     tip:"망고스틴을 연상시키는 맛과 식감! 샤인머스켓과 비슷한 포도 · 당도 자신!"}),
-
-  P({id:"bansee", startsOnDate:"2026-11-28", name:"반시", unit:"2.5kg · M", cats:["fruit"], img:"persimmon", grade:"C",
+  /* 일반 반시(2.5kg M · 5,000원)는 11/29 특가 반시(2.5kg · S · 3,900원)와 겹쳐 팔리지 않도록 판매를 내린다.
+     다시 팔 때는 endsOnSale 을 빼면 된다. */
+  P({id:"bansee", endsOnSale:true, startsOnDate:"2026-11-28", name:"반시", unit:"2.5kg · M", cats:["fruit"], img:"persimmon", grade:"C",
      badges:[], origin:"국내산", desc:"M 사이즈 2.5kg", price:5000, tags:["감 홍시"]}),
 
   P({id:"shine", name:"샤인머스켓", unit:"송이", cats:["fruit"], img:"shine", grade:"home",
