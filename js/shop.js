@@ -18,43 +18,18 @@ var ZONES = {
     hint:"50,000원 이상 무료배달 · 전날 발주 → 다음날 오전배송", eta:"전날 주문 → 다음날 오전 배송" }
 };
 
-/* 포장(매장픽업) 하루 1회 1,000원 할인 쿠폰 — 15,000원 이상 주문에만 */
-var PICKUP_DISCOUNT = 1000;
-var PICKUP_MIN = 15000;
 /* (삭제) 딸기 3×4 포장 추가구매 조건 — 4만 원 2kg 박스 행사 때만 쓰던 규칙이라,
    11/26부터 3×4를 정상 1팩(11,800원)으로 되돌리면서 함께 없앴다. 일반 상품과 같이 최소주문 없이 담긴다. */
 /* 사과 10kg 특가 — 다른 상품 30,000원 이상을 함께 담아야 주문되고,
-   사과 금액은 최소주문금액·쿠폰·바나나 이벤트 조건 계산에서 완전히 빠진다 (배달·포장 공통). */
+   사과 금액은 최소주문금액 계산에서 완전히 빠진다 (배달·포장 공통). */
 var APPLE_DEAL_ID = "apple-10kg-deal";
 var APPLE_ADDON_MIN = 30000;
 /* 행사 계란 — 계란 카테고리(cats 에 "egg" 가 든 상품) 금액은 배달 최소주문금액(시내 3만 원·외곽 5만 원)과
-   바나나 100원 이벤트의 3만 원 조건 계산에서 빠진다 (2026-11-26 사장님 지시 "계란도 지금행사니까 3만원최소주문금액에서 빼버려").
+   계산에서 빠진다 (2026-11-26 사장님 지시 "계란도 지금행사니까 3만원최소주문금액에서 빼버려").
    계란만 할인가로 담아 무료배달 최소주문을 채우는 것을 막는 것이 목적이다.
-   포장(매장픽업)은 원래 최소주문이 없어 계란만 담아도 되고, 포장 1,000원 쿠폰(1.5만 원)·사과 10kg 조건은 그대로 둔다. */
+   포장(매장픽업)은 원래 최소주문이 없어 계란만 담아도 되고, 사과 10kg 조건만 그대로 둔다. */
 var EGG_CAT = "egg";
 var EGG_MIN_NOTE = "계란 금액은 배달 최소주문금액에서 빠져요";
-var COUPON_KEY = "hoonie_retail_pickup_coupon_v1";
-/* 오픈 기념 바나나 100원도 포장 쿠폰과 똑같이 하루 1회 — 사용한 날짜를 기기에 남긴다 */
-var BANANA_KEY = "hoonie_retail_banana_event_v1";   // {"date":"2026-11-24"}
-
-/* 오픈 기념 이벤트 — 3만 원 이상 '배달' 주문이면 바나나 1송이를 100원에 추가 (11/24~11/29)
-   조건: 배달 전용 · 일반 상품 합계 3만 원 이상 · 주문당 1송이 · 하루 1회
-   일반 상품 합계(subtotal)만 보고 판단하고, 이벤트 바나나는 장바구니 줄이 아니라 state.banana 로 따로 담는다.
-   (바나나 행사 재고 8송이 제한과 섞이지 않게 하려는 것)
-   포장(매장픽업) 주문에는 적용하지 않는다 — 포장으로 바꾸면 자동으로 뺀다.
-   하루 1회는 포장 쿠폰과 같이 사용한 날짜를 기기에 남겨 하루에 한 번만 적용한다. */
-var OPEN_EVENT = {
-  from: "2026-11-24", to: "2026-11-29",
-  min: 30000,
-  price: 100,
-  pid: "banana-event",
-  name: "🍌 [오픈특가] 바나나 1송이",
-  label: "[오픈특가] 바나나 1송이 100원 추가하기 (+100원)",
-  offNote: "🍌 바나나 100원 이벤트는 3만 원 이상 배달 주문 시에만 적용돼요",
-  banner: "🎉 오픈 기념 이벤트 (11/24~11/29) · 배달 3만 원 이상 주문 시 🍌 바나나 1송이 100원! (하루 1회 · 1인 1송이 한정)",
-  bannerSub: "3만 원 이상 배달 주문 시 장바구니에서 100원에 추가할 수 있어요 · 하루 1회 · 주문당 1송이 한정"
-};
-
 /* ── 상품 정보(가격·품절·수량·코멘트·등급) 공유 ── */
 function catalogDoc(){
   try {
@@ -210,9 +185,6 @@ var state = {
   form: {name:"", phone:"", addr:"", gate:"", memo:"", pay:"bank", agree:false, depositor:"", receiptType:"none", receiptNo:""},
   order: null,
   opt: null,         // {pid, oi, qty}
-  couponDate: null,  // 포장 할인 마지막 사용일 (YYYY-MM-DD)
-  banana: false,     // 오픈 기념 이벤트 바나나 1송이 100원 추가 여부
-  bananaDate: null,  // 바나나 100원 마지막 사용일 (YYYY-MM-DD) — 하루 1회
   slots: {},         // 받는 시간 선택 {pickup:"soon30", delivery_city:"today_pm", delivery_outer:"tomorrow_am"}
   recent: null,      // 최근 주문자 {name, phone, addr, at}
   catalog: {},       // 사장님 페이지가 고친 상품 정보 {pid:{price,opts,soldout,stock,comment}}
@@ -709,12 +681,12 @@ function applyRecent(){
 function count(){ var n=0; for (var i=0;i<state.cart.length;i++) n += state.cart[i].qty; return n; }
 function subtotal(){ var s=0; for (var i=0;i<state.cart.length;i++) s += linePrice(state.cart[i]) * state.cart[i].qty; return s; }
 /* ── 사과 10kg 특가 ─────────────────────────────
-   사과 금액은 결제 금액에는 들어가지만, 최소주문금액·포장 쿠폰·바나나 이벤트 조건은
+   사과 금액은 결제 금액에는 들어가지만, 최소주문금액 조건은
    '다른 상품' 합계(otherSubtotal)로만 본다. 사과를 담았으면 다른 상품 30,000원 이상이 조건이다. */
 /* 계란(행사) 상품인지 — cats 에 "egg" 가 들어 있으면 계란으로 본다 */
 function isEggProduct(p){ return !!p && (p.cats || []).indexOf(EGG_CAT) > -1; }
 /* 사과 10kg 특가·행사 계란을 뺀 일반 상품 합계 —
-   배달 최소주문금액(시내 3만 원·외곽 5만 원)과 바나나 100원 이벤트의 3만 원 조건은 이 금액으로 본다. */
+   배달 최소주문금액(시내 3만 원·외곽 5만 원)은 이 금액으로 본다. */
 function deliveryBaseSubtotal(){
   var s = 0;
   for (var i=0;i<state.cart.length;i++){
@@ -830,78 +802,17 @@ function minOrderHtml(){
     + '<button data-mode="pickup">🏪 포장으로 변경하기</button></div>';
 }
 function todayStr(){ return koreanDateKey(); }
-function couponUsedToday(){ return state.couponDate === todayStr(); }
-/* 15,000원까지 남은 금액 — 사과 10kg 특가는 여기서도 빠진다 */
-function couponGap(){ return Math.max(0, PICKUP_MIN - otherSubtotal()); }
-/* 쿠폰 상태: used(오늘 사용) / delivery(배달) / empty(빈 장바구니) / need(금액 부족) / on(사용 가능) */
-function couponState(){
-  if (couponUsedToday()) return "used";
-  if (state.mode !== "pickup") return "delivery";
-  if (!state.cart.length) return "empty";
-  return otherSubtotal() >= PICKUP_MIN ? "on" : "need";
-}
-/* 이번 주문에 적용되는 포장 할인 (포장 + 오늘 미사용 + 15,000원 이상) */
-function pickupDiscount(){
-  if (state.mode !== "pickup") return 0;
-  if (!state.cart.length) return 0;
-  if (couponUsedToday()) return 0;
-  var sub = otherSubtotal();
-  if (sub < PICKUP_MIN) return 0;
-  return Math.min(PICKUP_DISCOUNT, sub);
-}
-/* ── 오픈 기념 이벤트 바나나(100원) ─────────────────────────────
-   eventBase() = 사과 10kg 특가·100원 이벤트를 뺀 일반 상품 합계
-   eventReady() = 배달 주문 + 3만 원 이상 (주문당 1송이 · 포장에는 적용 안 함) */
-function eventBase(){ return deliveryBaseSubtotal(); }   /* 사과 10kg 특가·행사 계란 금액은 3만 원 조건에 넣지 않는다 */
-function eventActive(){ var date = todayStr(); return date >= OPEN_EVENT.from && date <= OPEN_EVENT.to; }
-function eventGap(){ return Math.max(0, OPEN_EVENT.min - eventBase(), deliveryRequirements().strawberryGap); }
-function bananaUsedToday(){ return state.bananaDate === todayStr(); }
-function markBananaUsed(){ state.bananaDate = todayStr(); save(); }
-function eventReady(){ return eventActive() && state.mode === "delivery" && state.cart.length > 0 && eventGap() === 0 && !bananaUsedToday(); }
-/* 바나나 100원 상태: off(포장) / used(오늘 사용) / empty(빈 장바구니) / need(금액 부족) / ready(담을 수 있음) / on(담음) */
-function bananaState(){
-  if (!eventActive()) return "ended";
-  if (state.mode !== "delivery") return "off";
-  if (bananaUsedToday()) return "used";
-  if (!state.cart.length) return "empty";
-  if (eventGap() > 0) return "need";
-  return state.banana ? "on" : "ready";
-}
-function bananaPay(){ return (state.banana && eventReady()) ? OPEN_EVENT.price : 0; }
-/* 조건이 안 맞으면 이벤트 바나나를 자동으로 뺀다 (3만 원 아래로 줄었거나 포장으로 바꾼 경우) */
-function syncBanana(quiet){
-  if (state.banana && !eventReady()){
-    state.banana = false;
-    save();
-    if (!quiet){
-      toast(state.mode !== "delivery"
-        ? "🍌 바나나 100원은 배달 주문에만 적용돼서 장바구니에서 뺐어요"
-        : (bananaUsedToday()
-            ? "오늘 이미 사용한 이벤트예요 · 바나나 100원은 내일 다시 담을 수 있어요"
-            : "배달 행사 조건이 충족되지 않아 100원 바나나를 뺐어요"));
-    }
-    return true;
-  }
-  return false;
-}
-/* 배달 / 포장 전환 — 포장으로 바꾸면 100원 이벤트 바나나를 자동으로 뺀다 */
-function setMode(mode, quiet){
+/* 배달 / 포장 전환 */
+function setMode(mode){
   state.mode = (mode === "pickup") ? "pickup" : "delivery";
-  var dropped = syncBanana(true);
   save();
   renderAll();
-  if (dropped && !quiet) toast("🍌 바나나 100원은 배달 주문에만 적용돼서 장바구니에서 뺐어요");
-  return dropped;
 }
-function payable(){ return Math.max(0, subtotal() - pickupDiscount() + bananaPay()); }
+function payable(){ return subtotal(); }
 
 function save(){
   try {
-    localStorage.setItem(KEY, JSON.stringify({cart: state.cart, mode: state.mode, zone: state.zone, slots: state.slots, banana: !!state.banana}));
-    if (state.couponDate) localStorage.setItem(COUPON_KEY, JSON.stringify({date: state.couponDate}));
-    else localStorage.removeItem(COUPON_KEY);
-    if (state.bananaDate) localStorage.setItem(BANANA_KEY, JSON.stringify({date: state.bananaDate}));
-    else localStorage.removeItem(BANANA_KEY);
+    localStorage.setItem(KEY, JSON.stringify({cart: state.cart, mode: state.mode, zone: state.zone, slots: state.slots}));
   } catch(e){}
 }
 /* 옵션 상품을 따로 나눈 경우 — 예전 장바구니·지난 주문의 (상품, 옵션 번호)를 새 상품으로 옮긴다
@@ -928,22 +839,17 @@ function load(){
       if (d && d.mode === "pickup") state.mode = "pickup";
       else if (d && d.zone && ZONES[d.zone]) { state.mode = "delivery"; state.zone = d.zone; }
       if (d && d.slots && typeof d.slots === "object") state.slots = d.slots;
-      if (d && d.banana === true) state.banana = true;
     }
-    var c = localStorage.getItem(COUPON_KEY);
-    if (c) { var cd = JSON.parse(c); if (cd && cd.date) state.couponDate = cd.date; }
-    var bn = localStorage.getItem(BANANA_KEY);
-    if (bn) { var bd = JSON.parse(bn); if (bd && bd.date) state.bananaDate = bd.date; }
+    /* 2026-11-28 사장님: 포장 1,000원 쿠폰·바나나 100원 이벤트를 없애면서 기기에 남은 저장값도 지운다 */
+    localStorage.removeItem("hoonie_retail_pickup_coupon_v1");
+    localStorage.removeItem("hoonie_retail_banana_event_v1");
   } catch(e){}
 }
-function markCouponUsed(){ state.couponDate = todayStr(); save(); }
 
 /* ────────────────────────────────────────────────
    6. 배달 / 포장 탭 · 안내 배너
    ──────────────────────────────────────────────── */
 function renderMode(){
-  var eventBanner = $("#openEventBanner");
-  if (eventBanner) eventBanner.hidden = !eventActive();
   $$("#modeTabs button").forEach(function(b){
     var on = b.getAttribute("data-mode") === state.mode;
     b.classList.toggle("on", on);
@@ -951,24 +857,10 @@ function renderMode(){
   });
   var el = $("#modeBanner");
   if (state.mode === "pickup") {
-    var cs = couponState(), ico, title, sub;
-    if (cs === "used"){
-      ico = "🗓️"; title = "오늘 쿠폰 사용 완료";
-      sub = "내일 다시 1,000원 할인 쿠폰을 쓸 수 있어요 · 포장은 최소주문 없이 · " + PICKUP_HOURS;
-    } else if (cs === "need"){
-      ico = "🎟️"; title = money(couponGap()) + "원 더 담으면 포장 1,000원 쿠폰 사용 가능";
-      sub = "15,000원 이상 포장 주문 · 오늘 하루 1회";
-    } else if (cs === "on"){
-      ico = "🎟️"; title = "포장 1,000원 할인 쿠폰 적용 중";
-      sub = "이번 주문에서 1,000원 빠져요 · 오늘 하루 1회";
-    } else {
-      ico = "🎟️"; title = "포장 1,000원 할인 쿠폰";
-      sub = "15,000원 이상 포장 주문에 1,000원 · 오늘 하루 1회";
-    }
     el.innerHTML = (pickupSameDayOrderable() ? '' : pickupClosedBannerHtml())
-      + '<div class="banner pick' + (cs === "used" ? ' used' : '') + '">'
-      + '<b><span class="bn-ico">' + ico + '</span>' + title + '</b>'
-      + '<small>' + sub + '</small>'
+      + '<div class="banner pick">'
+      + '<b><span class="bn-ico">🏪</span>매장 포장 · 최소주문 없음</b>'
+      + '<small>단구로 398 상가동 101호 · 포장 가능 ' + PICKUP_HOURS + ' · 준비되면 바로 받아 가세요</small>'
       + slotBoxHtml(true)
       + '</div>';
   } else {
@@ -1150,7 +1042,6 @@ function add(pid, oi, qty){
   }
   if (found) found.qty += qty;
   else state.cart.push({pid: pid, oi: oi, qty: qty});
-  syncBanana();
   save();
   renderAll();
   var nm = p.name + (p.opts ? " · " + p.opts[oi].label : "");
@@ -1177,13 +1068,11 @@ function setQty(key, delta){
       break;
     }
   }
-  syncBanana();
   save();
   renderAll();
 }
 function removeLine(key){
   state.cart = state.cart.filter(function(l){ return lineKey(l) !== key; });
-  syncBanana();
   save();
   renderAll();
 }
@@ -1362,116 +1251,10 @@ function reqChipsHtml(){
   }
   return h + '</div>';
 }
-function couponCardHtml(){
-  var st = couponState(), gap = couponGap();
-  var h = '<div class="ticket' + (st === "on" ? ' live' : (st === "used" ? ' used' : '')) + '" id="cpTicket">'
-    + '<span class="tk-ico">🎟️</span>'
-    + '<div class="tk-t"><b>포장 1,000원 할인 쿠폰</b>'
-    + '<small>15,000원 이상 포장 주문 · 오늘 하루 1회</small>';
-  if (st === "on")        h += '<p class="tk-s on">이번 주문에 적용됐어요 · -1,000원</p>';
-  else if (st === "used")  h += '<p class="tk-s used">오늘 쿠폰 사용 완료 · 내일 다시 쓸 수 있어요</p>';
-  else if (st === "need")  h += '<p class="tk-s need">' + money(gap) + '원 더 담으면 포장 1,000원 쿠폰 사용 가능</p>';
-  else if (st === "delivery") h += '<p class="tk-s need">포장으로 바꾸면 바로 쓸 수 있어요</p>';
-  else                     h += '<p class="tk-s need">포장 주문에 담으면 바로 쓸 수 있어요</p>';
-  h += '</div><div class="tk-r">';
-  if (st === "on")            h += '<span class="tk-chip on">적용됨</span>';
-  else if (st === "used")      h += '<span class="tk-chip used">사용 완료</span>';
-  else if (st === "delivery")  h += '<button class="tk-chip btn" data-mode="pickup">포장으로 변경</button>';
-  else                         h += '<span class="tk-chip need">15,000원</span>';
-  return h + '</div></div>';
-}
-/* ── 이번 주문 혜택 조건 (장바구니·주문서 공용) ──
-   바나나 100원은 배달 전용, 포장 쿠폰은 포장 전용이라 한 주문에 함께 쓸 수 없다.
-   최소금액은 일반 상품 합계로 보고, 100원 이벤트 바나나는 여기에 넣지 않는다. */
-function benefitChip(text, cls){ return '<span class="bf-s ' + cls + '">' + text + '</span>'; }
-function benefitsCardHtml(){
-  var bst = bananaState(), cst = couponState();
-  var bTxt, bCls, bSub = "배달 전용 · 일반 상품 3만 원 이상 · 하루 1회 · 주문당 1송이";
-  if (bst === "ended"){ bTxt = "행사 기간 외"; bCls = "off"; }
-  else if (bst === "used"){ bTxt = "오늘 사용 완료"; bCls = "used"; bSub += " · 내일 다시 쓸 수 있어요"; }
-  else if (bst === "off"){ bTxt = "배달 주문에만"; bCls = "off"; }
-  else if (bst === "need"){ bTxt = money(eventGap()) + "원 더"; bCls = "need"; bSub += " · " + money(eventGap()) + "원 남았어요"; }
-  else if (bst === "on"){ bTxt = "적용됨"; bCls = "on"; }
-  else if (bst === "ready"){ bTxt = "담을 수 있어요"; bCls = "ready"; }
-  else { bTxt = "담기면 확인"; bCls = "off"; }
-
-  var cSub = "포장 전용 · 1.5만 원 이상 · 하루 1회", cTxt, cCls;
-  if (cst === "used"){ cTxt = "오늘 사용 완료"; cCls = "used"; cSub += " · 내일 다시 쓸 수 있어요"; }
-  else if (cst === "need"){ cTxt = money(couponGap()) + "원 더"; cCls = "need"; cSub += " · " + money(couponGap()) + "원 남았어요"; }
-  else if (cst === "on"){ cTxt = "적용됨"; cCls = "on"; }
-  else if (cst === "empty"){ cTxt = "담기면 확인"; cCls = "off"; }
-  else { cTxt = "포장 주문에만"; cCls = "off"; }
-
-  return '<div class="bnft">'
-    + '<div class="bf-h"><b>🎁 이번 주문 혜택 조건</b><span>각각 하루 1회</span></div>'
-    + '<div class="bf-row"><span class="bf-ico">🍌</span>'
-    +   '<div class="bf-t"><b>바나나 1송이 100원</b><small>' + bSub + '</small></div>' + benefitChip(bTxt, bCls) + '</div>'
-    + '<div class="bf-row"><span class="bf-ico">🎟️</span>'
-    +   '<div class="bf-t"><b>포장 1,000원 할인 쿠폰</b><small>' + cSub + '</small></div>' + benefitChip(cTxt, cCls) + '</div>'
-    + '<p class="bf-note">· 🍌 배달 전용과 🎟️ 포장 전용은 <b>한 주문에 함께 쓸 수 없어요</b>.<br>'
-    + '· 최소 주문금액은 <b>일반 상품 합계</b>로 계산해요 — 100원 이벤트 바나나와 계란 금액은 포함되지 않아요.</p>'
-    + '</div>';
-}
-/* ── 오픈 기념 이벤트 카드 (장바구니·주문서 공용) ── */
-function bananaEventHtml(){
-  if (!state.cart.length || !eventActive()) return "";
-  var bst = bananaState();
-  /* 오늘 이미 써서 다음 주문부터는 담을 수 없다 */
-  if (bst === "used"){
-    return '<div class="bncard used" id="banCard">'
-      + '<span class="bc-ico">🍌</span>'
-      + '<div class="bc-t"><b>오늘 바나나 100원 이벤트는 사용했어요</b>'
-      + '<small>하루 1회 · 내일 다시 100원에 담을 수 있어요 · 배달 3만 원 이상 · 주문당 1송이</small></div>'
-      + '<span class="bc-chip">오늘 사용 완료</span></div>';
-  }
-  /* 포장(매장픽업) 주문 — 담을 수 없고 안내만 */
-  if (bst === "off"){
-    return '<div class="bncard off" id="banCard">'
-      + '<div class="bc-t"><b>' + OPEN_EVENT.offNote + '</b>'
-      + '<small>배달 전용 · 주문당 1송이 · 하루 1회 한정 · 배달로 바꾸면 100원에 담을 수 있어요</small></div>'
-      + '</div>';
-  }
-  if (bst === "need"){
-    return '<div class="bncard need" id="banCard">'
-      + '<span class="bc-ico">🍌</span>'
-      + '<div class="bc-t"><b>' + money(eventGap()) + '원만 더 담으면 바나나 1송이 100원에 추가할 수 있어요!</b>'
-      + '<small>배달 전용 · 일반 상품 3만 원 이상 · 하루 1회 · 주문당 1송이 한정</small></div>'
-      + '</div>';
-  }
-  var on = !!state.banana;
-  return '<button type="button" class="bncard' + (on ? ' on' : '') + '" id="banCard" data-banana="toggle" role="checkbox" aria-checked="' + (on ? "true" : "false") + '">'
-    + '<span class="bc-ico">🍌</span>'
-    + '<div class="bc-t"><b>' + OPEN_EVENT.label + '</b>'
-    + '<small>' + (on ? "추가됐어요 · 결제 금액에 100원이 더해져요 (주문당 1송이 · 하루 1회)" : "배달 3만 원 이상 · 주문당 1송이 · 하루 1회 한정") + '</small></div>'
-    + '<span class="bc-ck" aria-hidden="true">' + (on ? "✓" : "") + '</span></button>';
-}
-function toggleBanana(){
-  if (!eventActive()) return;
-  if (state.mode !== "delivery"){
-    toast(OPEN_EVENT.offNote);
-    return;
-  }
-  if (bananaUsedToday()){
-    toast("오늘은 이미 사용했어요 · 바나나 100원은 내일 다시 담을 수 있어요");
-    return;
-  }
-  if (!eventReady()){
-    toast("행사 바나나를 담으려면 다른 상품 " + money(eventGap()) + "원을 더 담아 주세요");
-    return;
-  }
-  state.banana = !state.banana;
-  save();
-  renderAll();
-  if (state.banana) toast("🍌 바나나 1송이 100원 · 이번 주문에 담았어요");
-}
 function sumRowsHtml(){
-  var sub = subtotal(), disc = pickupDiscount();
+  var sub = subtotal();
   var h = '<div class="srow"><span>상품 금액</span><b>' + money(sub) + '원</b></div>';
-  if (disc > 0) h += '<div class="srow disc"><span>🎟️ 포장 할인 쿠폰</span><b>- ' + money(disc) + '원</b></div>';
-  else if (state.mode === "pickup" && couponUsedToday()) h += '<div class="srow muted"><span>🎟️ 포장 할인 쿠폰</span><b>오늘 쿠폰 사용 완료</b></div>';
-  else if (state.mode === "pickup" && sub < PICKUP_MIN) h += '<div class="srow muted"><span>🎟️ 포장 할인 쿠폰</span><b>' + money(couponGap()) + '원 더 담으면 사용</b></div>';
   if (state.mode === "delivery") h += '<div class="srow"><span>배달비</span><b>' + (meetMin() ? "0원 (무료배달)" : "무료배달 조건 미달") + '</b></div>';
-  if (bananaPay() > 0) h += '<div class="srow ev"><span>🍌 [오픈특가] 바나나 1송이</span><b>+ ' + money(bananaPay()) + '원</b></div>';
   h += '<div class="srow total"><span>결제 금액</span><span class="v">' + money(payable()) + '원</span></div>';
   return h;
 }
@@ -1503,9 +1286,6 @@ function renderCart(){
   for (var i=0;i<state.cart.length;i++) h += cartRowHtml(state.cart[i]);
   h += '</div>';
   h += '<button class="morebtn" id="moreBtn">+ 더 담으러 가기</button>';
-  h += bananaEventHtml();
-  h += couponCardHtml();
-  h += benefitsCardHtml();
   if (!meetMin()){
     h += minOrderHtml();
     if (!pickupOnlyNames().length && !deliveryRequirements().notes.length && !appleRequirement().has) h += fillCardHtml();
@@ -1513,7 +1293,6 @@ function renderCart(){
   h += '<div class="sumcard">' + sumRowsHtml() + '</div>';
   h += gbadgeHtml();
   if (lastOrder()) h += '<button class="reorder cart" id="reorderCart">🔁 지난번 시킨 거 그대로 담기</button>';
-  h += '<p class="note">포장 1,000원 할인 쿠폰은 15,000원 이상 주문에 하루 1회만 적용됩니다.</p>';
   body.innerHTML = h;
 
   var reason = blockReason();
@@ -1651,7 +1430,7 @@ var POLICIES = {
   shipping: {
     title: "배송 및 교환·환불 정책",
     body: '<p class="polmeta">시행일 2026년 11월 22일 · 훈이네과일야채 단구점</p>'
-      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다. 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>15,000원 이상 포장 주문에는 1,000원 할인 쿠폰을 하루 1회 쓸 수 있습니다.</li></ul>'
+      + '<h4>1. 매장 픽업(포장)</h4><ul><li>받는 곳: 강원특별자치도 원주시 단구로 398, 상가동2동 1층 101호</li><li>당일 픽업 주문은 08:00~20:00 접수 · 실제 픽업 가능 시간은 <b>09:00~20:00</b>입니다. 오전 9시 이후 준비되면 바로 수령(보통 30분 이내)하거나 오늘 오후 픽업을 선택할 수 있습니다.</li><li>포장 주문은 최소주문 금액이 없습니다.</li></ul>'
       + '<h4>2. 배달</h4><ul><li><b>원주 시내권</b>: 30,000원 이상 무료배달 · 낮 12시 이전 주문은 당일 또는 익일 배달</li><li>낮 12시가 지나 주문하시면 다음날 오전 배송으로 접수됩니다.</li><li>매일 <b>오후 6시~9시</b>는 재고 확인 시간이라 배달 주문을 받지 않습니다(오후 9시부터 다시 접수). 오후 8시~9시는 포장 주문도 쉽니다.</li><li><b>일요일은 배달하지 않습니다.</b> 토요일 낮 12시 이후와 일요일에 배달로 주문하시면 월요일 오전에 배달됩니다. 일요일에도 매장 포장은 가능합니다. 매장 포장은 영업시간 09:00~20:00 안에서 가능합니다.</li><li><b>기업도시·태장·우산동</b>: 50,000원 이상 무료배달 · 전날 주문 시 다음날 오전 배송</li><li><b>계란</b>은 행사 상품이라 계란 금액은 최소주문 금액에 포함되지 않습니다. 계란을 빼고 다른 상품 금액으로 최소주문 금액을 채워야 배달 주문이 됩니다(포장 주문에는 적용되지 않습니다).</li><li>최소주문 금액에 못 미치면 배달이 되지 않아 주문 버튼이 잠기고, 포장으로 바꾸는 안내가 나옵니다.</li><li>비·눈이나 도로 사정으로 늦어지면 먼저 연락드립니다.</li></ul>'
       + '<h4>3. 신선식품 교환·환불</h4><p>과일·채소는 신선식품이라 받으신 날 상태를 확인해 주세요. 아래 경우에는 <b>사진 접수</b>로 알려 주시면 확인 후 <b>교환 또는 부분환불</b>로 보상해 드립니다.</p><ul><li>받은 날 상한·무른·곰팡이·파손 등 이상이 있는 경우</li><li>주문한 상품과 다르거나 수량이 모자란 경우</li><li>표시된 등급·규격과 현저히 다른 경우</li></ul>'
       + '<h4>4. 접수와 처리 절차</h4><ul><li>화면의 <b>📷 받은 상품 이상하면 사진 접수</b>를 눌러 사진(최대 3장)·품목·사유·연락처를 보내 주세요.</li><li>사장님이 사진을 확인한 뒤 연락드리고, 교환·부분환불·다음 주문 보상 중에서 알맞은 방법으로 처리합니다.</li><li>급하시면 고객센터 010-9142-1531로 전화 주세요. 접수번호(CL…)를 알려 주시면 바로 확인합니다.</li></ul>'
@@ -1868,7 +1647,6 @@ function reorderLast(){
   state.mode = o.mode === "pickup" ? "pickup" : "delivery";
   if (o.zone && ZONES[o.zone]) state.zone = o.zone;
   if (o.slot) state.slots[ctxKey()] = o.slot;
-  syncBanana(true);
   save(); renderAll();
   toast("지난번 주문 " + count() + "개를 담았어요");
 }
@@ -1955,7 +1733,6 @@ function renderCheckout(){
       + '<div class="p">' + money(linePrice(l) * l.qty) + '원</div></div>';
   }
   h += '</div>';
-  h += bananaEventHtml();
   h += '</section>';
 
   h += '<div class="band"></div>'
@@ -1979,13 +1756,8 @@ function renderCheckout(){
   h += '<div class="band"></div>'
     + '<section class="csec"><h3><span class="sn">5</span>결제 금액</h3>'
     + '<div class="sumcard" style="margin:0">' + sumRowsHtml() + '</div>'
-    + benefitsCardHtml()
     + '<p class="simnote">🕒 받는 시간: <b>' + curSlot().label + '</b><br>' + (state.mode === "pickup"
-        ? (pickupDiscount() > 0
-            ? "포장 1,000원 할인 쿠폰이 적용됐어요. 오늘 하루 1번 사용할 수 있어요."
-            : (couponUsedToday()
-                ? "오늘 쿠폰은 사용 완료했어요. 내일 다시 쓸 수 있어요."
-                : "15,000원 이상 주문이면 포장 1,000원 쿠폰을 쓸 수 있어요 · " + money(couponGap()) + "원 남았어요."))
+        ? "🏪 매장 포장 · 최소주문 없음 · 포장 가능 " + PICKUP_HOURS
         : z.name + (meetMin() ? " · 무료배달 조건 충족" : " · 최소금액 미달")) + '</p>'
     + '</section>';
 
@@ -2112,8 +1884,6 @@ async function pay(){
   btn.disabled = true;
   btn.textContent = "주문 접수 중…";
 
-  var usedCoupon = pickupDiscount() > 0;
-  var usedBanana = bananaPay() > 0;      /* 이 주문에 100원 바나나를 썼으면 오늘은 더 못 쓴다 */
   var slot = curSlot();
   var now = new Date();
   var no = "HN" + now.getFullYear() + String(now.getMonth()+1).padStart(2,"0") + String(now.getDate()).padStart(2,"0")
@@ -2123,18 +1893,12 @@ async function pay(){
     return {pid: p.id, oi: l.oi, qty: l.qty, name: p.name, unit: p.unit,
             opt: o ? o.label : "", price: linePrice(l), sum: linePrice(l) * l.qty};
   });
-  /* 오픈 기념 이벤트 바나나 — 일반 상품과 따로 한 줄로 기록 (재고 8송이 제한과 분리) */
-  if (state.banana && eventReady()){
-    items.push({pid: OPEN_EVENT.pid, oi: 0, qty: 1, name: OPEN_EVENT.name, unit: "",
-                opt: "", price: OPEN_EVENT.price, sum: OPEN_EVENT.price, event: true});
-  }
   var ord = {
     no: no, at: now.getTime(),
     time: String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0"),
     mode: state.mode, zone: state.mode === "delivery" ? state.zone : "pickup",
     slot: slot.key, slotLabel: slot.label, eta: slot.eta,
-    sub: subtotal(), disc: pickupDiscount(), pay: payName, total: payable(),
-    eventBanana: bananaPay() > 0, eventName: (bananaPay() > 0 ? OPEN_EVENT.name : ""),
+    sub: subtotal(), pay: payName, total: payable(),
     name: f.name, phone: f.phone,
     depositor: String(f.depositor || "").trim(),
     receiptType: (f.receiptType || "none"),
@@ -2153,8 +1917,6 @@ async function pay(){
   pushNewOrderAlert(ord);  /* 사장님 폰으로 새 주문 푸시 (실패해도 주문은 그대로) */
   saveRecent();
   decStock();
-  if (usedCoupon) markCouponUsed();
-  if (usedBanana) markBananaUsed();
   showDone(ord);
 }
 /* 주문된 만큼 남은 수량 줄이기 — 사장님 페이지에 바로 반영 */
@@ -2227,7 +1989,6 @@ function showDone(ord){
     + (o.depositor ? '<div class="drow"><span>입금자명</span><b>' + esc(o.depositor) + '</b></div>' : '')
     + (o.receiptNo ? '<div class="drow"><span>현금영수증</span><b>' + esc(o.receiptLabel || receiptLabel(o.receiptType)) + ' ' + esc(o.receiptNo) + '</b></div>' : '')
     + '<div class="drow"><span>상품 금액</span><b>' + money(o.sub) + '원</b></div>'
-    + (o.disc > 0 ? '<div class="drow disc"><span>🎟️ 포장 할인 쿠폰</span><b>- ' + money(o.disc) + '원</b></div>' : '')
     + '<div class="drow big"><span>결제 금액</span><b>' + money(o.total) + '원</b></div>'
     + '<div class="ditems">';
   for (var i=0;i<o.items.length;i++){
@@ -2252,7 +2013,6 @@ function showDone(ord){
     guide = (st === "ready" || st === "done")
       ? "🏪 <b>매장에서 받아 가시면 됩니다.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00"
       : "🏪 <b>포장 준비되면 문자로 알려 드려요.</b><br>단구로 398 상가동 101호 · 033-765-1531 · 포장 가능 시간 09:00~20:00";
-    if (o.disc > 0) guide += "<br>1,000원 포장 할인 쿠폰은 오늘 하루 1번 사용할 수 있어요.";
   } else if (o.zone === "city"){
     guide = "🛵 <b>낮 12시 이전 주문은 당일 또는 익일 배달</b>이에요.<br>배달 전에 기사님이 " + esc(o.phone) + "로 연락드려요.";
   } else {
@@ -2294,7 +2054,6 @@ function showDone(ord){
   });
   $("#doneOk").addEventListener("click", function(){
     state.cart = [];
-    state.banana = false;
     state.form = {name: state.form.name, phone: state.form.phone, addr: "", gate: "", memo: "", pay: state.form.pay, agree: false,
                   depositor: "", receiptType: "none", receiptNo: ""};
     save();
@@ -2345,12 +2104,11 @@ function bind(){
   $("#modeBanner").addEventListener("click", function(e){
     var mb = e.target.closest("[data-mode]");
     if (mb){
-      var mbDropped = setMode(mb.getAttribute("data-mode"), true);
+      setMode(mb.getAttribute("data-mode"));
       toast(state.mode === "pickup"
-        ? (mbDropped ? "포장으로 바꿨어요 · 바나나 100원은 배달 전용이라 뺐어요"
-                     : (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + PICKUP_HOURS + " 안에서 준비해 드려요"
-                                        : (pickupSameDayOrderable() ? "포장 주문으로 바꿨어요 · 오늘 오후 픽업을 예약할 수 있어요"
-                                                                    : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 " + pickupDayWord() + " 오전 9시 이후 픽업으로 예약돼요")))
+        ? (pickupOpenNow() ? "포장 주문으로 바꿨어요 · 영업시간 " + PICKUP_HOURS + " 안에서 준비해 드려요"
+                           : (pickupSameDayOrderable() ? "포장 주문으로 바꿨어요 · 오늘 오후 픽업을 예약할 수 있어요"
+                                                       : "포장 주문으로 바꿨어요 · 지금은 접수 시간이 아니라 " + pickupDayWord() + " 오전 9시 이후 픽업으로 예약돼요"))
         : "배달 주문으로 바꿨어요");
       return;
     }
@@ -2419,7 +2177,6 @@ function bind(){
     var rm = e.target.closest("[data-rm]");
     if (rm){ removeLine(rm.getAttribute("data-rm")); return; }
     if (e.target.closest("#moreBtn")){ showView("shop"); window.scrollTo(0,0); return; }
-    if (e.target.closest("[data-banana]")){ toggleBanana(); return; }
   });
   $("#cartBack").addEventListener("click", function(){ showView("shop"); renderAll(); });
   $("#toCheckout").addEventListener("click", goCheckout);
@@ -2501,7 +2258,6 @@ function bind(){
   /* 결제 · 로그인 */
   $("#payBtn").addEventListener("click", pay);
   $("#ckBody").addEventListener("click", function(e){
-    if (e.target.closest("[data-banana]")){ toggleBanana(); return; }
     var gateB = e.target.closest("[data-gate]");
     if (gateB){
       var gf = state.form, gi = $("#ckGate");
@@ -2560,7 +2316,6 @@ function bind(){
 function init(){
   load();
   loadCatalog();
-  syncBanana(true);     /* 지난번에 담아 둔 이벤트 바나나가 조건에 안 맞으면 조용히 뺀다 */
   loadOrders();
   loadRecent();
   applyRecent();
@@ -2593,16 +2348,14 @@ function init(){
   /* 다른 기기의 사장님·손님 화면과 공용 DB로 맞추기 (5초마다) */
   syncStart();
   /* 화면을 켜 둔 채 낮 12시를 넘기면 배달 안내를 자동으로 바꾼다 */
-  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasEventActive = eventActive(), wasDay = todayStr(), wasPaused = orderPaused(), wasClear = clearanceKey(), wasDelivPaused = deliveryPaused();
+  var wasClosed = deliveryClosed(), wasPickupOpen = pickupOpenNow(), wasPickupSameDay = pickupSameDayOrderable(), wasSaleStarted = saleStarted(), wasDay = todayStr(), wasPaused = orderPaused(), wasClear = clearanceKey(), wasDelivPaused = deliveryPaused();
   setInterval(function(){ var dt = $("#dealTimer"); if (dt) dt.textContent = dealTimerText(); }, 30000);
   setInterval(function(){
     var c = deliveryClosed(), po = pickupOpenNow(), psd = pickupSameDayOrderable();
     /* 자정이 지나면(endsOnDate 특가 종료·새 행사 시작) 목록을 다시 그린다 */
-    if (saleStarted() !== wasSaleStarted || eventActive() !== wasEventActive || todayStr() !== wasDay){
+    if (saleStarted() !== wasSaleStarted || todayStr() !== wasDay){
       wasSaleStarted = saleStarted();
-      wasEventActive = eventActive();
       wasDay = todayStr();
-      syncBanana(true);
       renderCats();
       renderAll();
     }

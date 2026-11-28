@@ -331,7 +331,6 @@ function renderBanner(){
         + '<span class="meta"><b class="no">' + esc(o.no) + '</b> · ' + esc(o.name || "손님") + '</span>'
         + '<span class="amt">' + money(o.total || 0) + '원</span>'
         + (o.slotLabel ? '<span class="slotline">⏰ ' + esc(o.slotLabel) + (o.memo ? ' · 📝 ' + esc(o.memo) : '') + '</span>' : '')
-        + (hasEventBanana(o) ? '<span class="evline">🍌 바나나 1송이 100원 오픈특가 포함</span>' : '')
         + ((o.depositor || (o.receiptNo && o.receiptType && o.receiptType !== "none"))
             ? '<span class="payline">' + (o.depositor ? '💰 입금자명 ' + esc(o.depositor) : '')
               + (o.depositor && o.receiptNo ? ' · ' : '')
@@ -790,17 +789,6 @@ function filteredOrders(){
   }
   return list;
 }
-/* 오픈 기념 이벤트 바나나 1송이(100원) 주문인지 */
-function hasEventBanana(o){
-  if (!o) return false;
-  if (o.eventBanana) return true;
-  var its = o.items || [];
-  for (var i=0;i<its.length;i++) if (isEventItem(its[i])) return true;
-  return false;
-}
-function isEventItem(it){
-  return !!it && (it.event || String(it.pid || "") === "banana-event" || String(it.name || "").indexOf("[오픈특가]") > -1);
-}
 /* ── 단골(재주문) 배지 ─────────────────────────
    같은 전화번호(숫자만 비교)로 2번 이상 주문한 손님. 취소된 주문은 빼고 센다.
    카드마다 전체 목록을 훑지 않도록 주문 목록을 그릴 때 한 번만 세어 둔다. */
@@ -835,7 +823,6 @@ function orderCardHtml(o){
   var h = '<article class="ocard st-' + st + (alarm.pending[o.no] ? ' isnew' : '') + '" data-no="' + esc(o.no) + '">';
   h += '<div class="ohead"><b class="ono">' + esc(o.no) + '</b><span class="otime' + (isToday(o.at) ? '' : ' prev') + '">' + esc((isToday(o.at) ? '' : dayTag(o.at) + ' ') + (o.time || hhmm(o.at))) + '</span>'
     +  '<span class="obadge ' + (o.mode === "pickup" ? "pickup" : "delivery") + '">' + (o.mode === "pickup" ? "🏪 포장" : "🛵 배달") + '</span>'
-    +  (hasEventBanana(o) ? '<span class="obadge ev" title="오픈 기념 이벤트 — 바나나 1송이 100원">🍌 100원 바나나</span>' : '')
     +  '<span class="ost ' + st + '">' + statusLabel(o) + '</span></div>';
   h += '<div class="orows">'
     + '<div class="orow"><span>받는 시간</span><b class="slot">' + esc(slotText(o)) + '</b></div>'
@@ -850,14 +837,13 @@ function orderCardHtml(o){
   (o.items || []).forEach(function(it){
     var unit = esc(it.unit || '');
     var optTxt = it.opt ? (it.unit && it.opt.indexOf(it.unit) > -1 ? ' · ' + esc(it.opt) : ' ' + unit + ' · ' + esc(it.opt)) : (unit ? ' ' + unit : '');
-    h += '<div class="oit' + (isEventItem(it) ? ' ev' : '') + '"><span class="n"><b>' + esc(it.name) + '</b>'
+    h += '<div class="oit"><span class="n"><b>' + esc(it.name) + '</b>'
       + optTxt + ' × ' + it.qty + '</span>'
       + '<span class="p">' + money(it.sum) + '원</span></div>';
   });
   h += '</div>';
   if (o.memo) h += '<div class="omemo">📝 ' + esc(o.memo) + '</div>';
   h += '<div class="osum"><span>상품 ' + money(o.sub) + '원</span>'
-    + (hasEventBanana(o) ? '<span class="oev">🍌 오픈특가 +100원</span>' : '')
     + (o.disc > 0 ? '<span class="disc">포장 할인 -' + money(o.disc) + '원</span>' : '')
     + '<span>' + esc(o.pay || "결제") + (o.pay ? '' : '') + '</span>'
     + '<b class="tot">결제 ' + money(o.total) + '원</b></div>';
@@ -1002,7 +988,7 @@ function receiptInnerHtml(o){
     var qty = Number(it.qty) || 1;
     var price = Number(it.price);
     if (!isFinite(price) || price <= 0) price = Math.round((Number(it.sum) || 0) / qty);
-    h += '<tr' + (isEventItem(it) ? ' class="ev"' : '') + '><td class="nm">' + esc(it.name || "")
+    h += '<tr><td class="nm">' + esc(it.name || "")
       + (spec ? ' <i>' + esc(spec) + '</i>' : '') + '</td>'
       + '<td class="q">' + qty + '</td>'
       + '<td class="u">' + money(price) + '</td>'
@@ -1012,7 +998,7 @@ function receiptInnerHtml(o){
   h += '<div class="rtot">'
     + '<div class="tr"><span>상품합계</span><b>' + money(sum) + '원</b></div>'
     + '<div class="tr"><span>배달비</span><b>무료</b></div>'
-    + '<div class="tr"><span>쿠폰·포장 할인</span><b>' + (disc > 0 ? "-" + money(disc) + "원" : "0원") + '</b></div>'
+    + (disc > 0 ? '<div class="tr"><span>할인</span><b>-' + money(disc) + '원</b></div>' : '')
     + '<div class="tr grand"><span>총 결제금액</span><b>' + money(total) + '원</b></div>'
     + '</div>';
   var pay = String(o.pay || "무통장입금");

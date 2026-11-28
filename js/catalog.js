@@ -297,7 +297,7 @@ var PRODUCTS = [
   P({id:"chamsari-mung-sprouts-400g", name:"참살이 숙주", unit:"400g", cats:["veg"], origin:"외국산(중국·미얀마·페루 등)", price:1700, tags:["숙주","참살이"]}),
 
   /* ── 계란 (행사) ──
-     계란 금액은 배달 최소주문금액(시내 3만 원·외곽 5만 원)과 바나나 100원 이벤트 3만 원 조건에서 빠진다 (shop.js EGG_CAT).
+     계란 금액은 배달 최소주문금액(시내 3만 원·외곽 5만 원)에서 빠진다 (shop.js EGG_CAT).
      포장(매장픽업)은 최소주문이 없어 계란만 담아도 된다. */
   P({id:"egg-large-20261125", name:"대란", unit:"1판 (30구)", cats:["egg"], img:"egg",
      origin:"국내산", price:5000, stock:4, startsOnSale:true}),
